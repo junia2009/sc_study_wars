@@ -1,0 +1,15 @@
+{
+  "name": "SC STUDY WARS 〜障害報告書は書きたくない〜",
+  "short_name": "SC STUDY WARS",
+  "description": "情報漏洩の手口を、遊びながら見抜けるようになる横スクロールアクション",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#05070f",
+  "theme_color": "#0b0f24",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

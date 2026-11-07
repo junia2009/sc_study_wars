@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>SC STUDY WARS 〜障害報告書は書きたくない〜</title>
+  <meta name="description" content="情報漏洩の手口を、遊びながら見抜けるようになるドット絵の横スクロールアクション。">
+  <meta name="theme-color" content="#0b0f24">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <div id="stage-wrap">
+      <canvas id="screen" width="320" height="180" aria-label="ゲーム画面"></canvas>
+      <div id="hud" aria-live="off">
+        <span id="hud-stage">STAGE 1</span>
+        <span class="leak">
+          <span class="label">漏洩ゲージ</span>
+          <span id="hud-leak" class="bar" role="meter" aria-label="漏洩ゲージ"><i></i></span>
+          <span id="hud-leak-num">0%</span>
+        </span>
+        <span id="hud-mfa" class="mfa" hidden title="多要素認証の盾">🛡 MFA</span>
+        <span id="hud-score">00000</span>
+      </div>
+      <div id="banner" role="status" aria-live="polite"></div>
+      <div id="prompt" hidden></div>
+    </div>
+
+    <div id="pad" aria-hidden="true">
+      <div class="pad-left">
+        <button data-pad="left" class="pad-btn">◀</button>
+        <button data-pad="right" class="pad-btn">▶</button>
+      </div>
+      <div class="pad-right">
+        <button data-pad="act" class="pad-btn small">調べる</button>
+        <button data-pad="jump" class="pad-btn big">ジャンプ</button>
+      </div>
+    </div>
+  </main>
+
+  <div id="overlay" hidden></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
