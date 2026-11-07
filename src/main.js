@@ -1,4 +1,4 @@
-// 起動と、画面の切り替え(タイトル → プレイ → 判断シーン → クリア/報告書)
+// 起動と、1日の流れ(タイトル → 名前 → 朝の会話 → プレイ ⇄ 判断シーン → 黒幕 → 振り返り)
 import { buildSprites, spriteURL } from './sprites.js';
 import { initInput, pollPad, setGameInput, clearPressed, held } from './input.js';
 import { initAudio, setMuted, isMuted } from './audio.js';
@@ -6,6 +6,7 @@ import { Game, VIEW_W, VIEW_H } from './game.js';
 import { RES } from './sprites.js';
 import { STAGE1 } from '../data/stage1.js';
 import { SCENES } from '../data/scenes.js';
+import { MONDAY, GRADES } from '../data/story.js';
 import * as UI from './ui.js';
 
 export const GAME_TITLE = 'SC STUDY WARS';
@@ -17,7 +18,7 @@ canvas.width = VIEW_W * RES;
 canvas.height = VIEW_H * RES;
 
 const S = buildSprites();
-const CARD_SPRITE = { pass: S.pass[0].r, shield: S.shield, phish: S.phish[0].r, door: S.door };
+const CARD_SPRITE = { pass: S.pass[0].r, shield: S.shield, phish: S.phish[0].r, door: S.door, bookmark: S.bookmark, ledger: S.ledger };
 const cardImgCache = {};
 const cardImg = (c) => (cardImgCache[c.id] ??= spriteURL(CARD_SPRITE[c.sprite] || S.crystal[0], 2));
 
@@ -41,6 +42,16 @@ const store = {
 };
 let owned = store.get('scsw.cards', []);
 setMuted(store.get('scsw.muted', false));
+let playerName = store.get('scsw.name', 'ミナト');
+
+// 画面(ui.js)に渡す: 顔・手がかりの画像と、主人公の名前
+const faceCache = {};
+const clueCache = {};
+UI.initUI({
+  face: (k) => (faceCache[k] ??= spriteURL(S.faces[k], 3)),
+  clueImg: (k) => (clueCache[k] ??= spriteURL(S[k], 2)),
+  name: () => playerName,
+});
 
 // ---- 画面の大きさ ----
 // 画面の形に合わせて、拡大率と「見える範囲(横 vw × 縦 vh)」を決める。
@@ -96,44 +107,70 @@ visualViewport?.addEventListener('resize', fit);
 
 // ---- ゲーム ----
 let mode = 'title'; // title | play | dialog | end
-game = new Game(STAGE1, S, {
+const DAY = MONDAY;
+game = new Game(STAGE1, DAY, S, {
   hud: (gm) => UI.updateHud(gm),
   banner: (text, tone) => UI.banner(text, tone),
+  say: (line) => UI.say(line),
   prompt: (text) => UI.prompt(text),
+  // 手がかりを取った
+  clue: (kind) => {
+    const lines = {
+      bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます(B ボタンで見られます)' }],
+      ledger: [{ who: 'guard', text: '連絡先台帳を手に入れました! 山田さんの本当の連絡先が載っています' }],
+    }[kind];
+    pause();
+    UI.talk(lines, resume);
+  },
+  // 手帳(B ボタン)
+  notebook: () => {
+    pause();
+    UI.showNotebook(game.clues, resume);
+  },
+  // 判断シーン: 前のひとこと → 判断 → 結果
   scene: (id) => {
     pause();
-    UI.showScene(id, (choice) => {
-      game.applyScene(id, choice);
-      if (!game.over) resume();
+    game.clock = DAY.clocks[id] || game.clock;
+    UI.updateHud(game);
+    UI.talk(DAY.before[id] || [], () => {
+      UI.showScene(id, { clues: game.clues, clock: game.clock }, (result) => {
+        game.applyScene(id, result);
+        if (!game.over) resume();
+      });
     });
   },
-  door: (door) => {
-    pause();
-    UI.showDoor(door, (enter) => {
-      if (enter) game.enterDoor(door);
-      if (!game.over) resume();
-    });
-  },
+  // 漏洩リスク・業務の遅れが満タン
   over: (gm) => {
     mode = 'end';
     setGameInput(false);
     UI.prompt(null);
     UI.hideOverlay();
-    setTimeout(() => UI.showReport(gm, { onRetry: restart, onTitle: title }), 500);
+    setTimeout(() => UI.showReport(gm, { onRetry: startDay, onTitle: title }), 500);
   },
-  clear: (gm) => {
+  // ログアウトゲートに着いた: 黒幕 → 振り返り
+  goal: (gm) => {
     mode = 'end';
     setGameInput(false);
     UI.prompt(null);
-    const sum = gm.summary();
-    owned = [...new Set([...owned, ...sum.cards])];
-    store.set('scsw.cards', owned);
-    const best = store.get('scsw.best', 0);
-    if (sum.score > best) store.set('scsw.best', sum.score);
-    const clearOpts = { cardImg, onCards: () => cards(() => UI.showClear(sum, clearOpts)), onRetry: restart, onTitle: title };
-    UI.showClear(sum, clearOpts);
+    gm.clock = DAY.clocks.boss;
+    UI.updateHud(gm);
+    UI.talk(DAY.boss, () => review(gm));
   },
 });
+
+function review(gm) {
+  const sum = gm.summary(GRADES);
+  owned = [...new Set([...owned, ...sum.cards])];
+  store.set('scsw.cards', owned);
+  const opts = {
+    day: DAY.day,
+    cardImg,
+    onCards: () => cards(() => UI.showReview(sum, opts)),
+    onRetry: startDay,
+    onTitle: title,
+  };
+  UI.talk(DAY.outro, () => UI.showReview(sum, opts));
+}
 
 function pause() {
   mode = 'dialog';
@@ -146,10 +183,12 @@ function resume() {
   clearPressed();
   canvas.focus?.();
 }
-function restart() {
+// 1日を最初から: 朝の会話 → プレイ
+function startDay() {
   game.reset();
   UI.prompt(null);
-  resume();
+  pause();
+  UI.talk(DAY.intro, resume);
 }
 function title() {
   mode = 'title';
@@ -163,8 +202,11 @@ function title() {
     muted: isMuted(),
     onStart: () => {
       initAudio();
-      restart();
-      UI.banner('経理部に到着。ゴールは、本物の経費精算システムの扉だ。', 'info');
+      UI.askName(playerName, (name) => {
+        playerName = name;
+        store.set('scsw.name', name);
+        startDay();
+      });
     },
     onCards: () => cards(title),
     onMute: () => {
@@ -181,7 +223,7 @@ function pauseMenu() {
   UI.showPause({
     muted: isMuted(),
     onResume: resume,
-    onRestart: restart,
+    onRestart: startDay,
     onTitle: title,
     onMute: () => {
       setMuted(!isMuted());
@@ -236,7 +278,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // 判断シーンの中身が足りているかを、開発中に確かめる
-for (const id of STAGE1.terminals) if (!SCENES[id]) console.warn(`判断シーン ${id} がない`);
+for (const id of DAY.scenes) if (!SCENES[id]) console.warn(`判断シーン ${id} がない`);
 
 // PWA
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

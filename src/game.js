@@ -32,8 +32,9 @@ function body(x, y, w, h) {
 }
 
 export class Game {
-  constructor(stage, sprites, hooks) {
+  constructor(stage, day, sprites, hooks) {
     this.stage = stage;
+    this.day = day; // その日の台本(判断シーンの順番・ひとこと)
     this.S = sprites;
     this.hooks = hooks;
     this.vw = VIEW_W;
@@ -53,9 +54,8 @@ export class Game {
     this.floats = [];
     this.terms = [];
     this.hints = [];
-    this.events = [];
-    this.spawns = [];
-    this.doors = [];
+    this.clueItems = [];
+    this.goal = null;
     this.bumps = [];
     let start = { x: 32, y: 0 };
     let ti = 0;
@@ -71,14 +71,11 @@ export class Game {
           case 'e': this.enemies.push(this.enemy('phish', px + 2, py + 6)); break;
           case 'p': this.enemies.push(this.enemy('pass', px + 2, py + 6)); break;
           case 'o': this.coins.push({ x: px + 4, y: py + 4, w: 8, h: 8 }); break;
-          case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: st.terminals[ti++], used: false }); break;
-          case 'i': this.hints.push({ x: px, text: st.hints[hi++], shown: false }); break;
-          case 'A': this.events.push({ x: px, done: false }); break;
-          case 'x': this.spawns.push({ x: px + 2, y: py + 6 }); break;
-          case 'D':
-          case 'F':
-            this.doors.push({ x: px, y: py - T, w: T, h: T * 2, kind: ch, ...st.doors[ch], marked: false });
-            break;
+          case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: this.day.scenes[ti++], used: false }); break;
+          case 'i': this.hints.push({ x: px, line: this.day.hints[hi++], shown: false }); break;
+          case 'K': this.clueItems.push({ kind: 'bookmark', x: px, y: py, w: T, h: T }); break;
+          case 'L': this.clueItems.push({ kind: 'ledger', x: px, y: py, w: T, h: T }); break;
+          case 'Z': this.goal = { x: px, y: py - T, w: T, h: T * 2 }; break;
           default: clear = false;
         }
         if (clear) this.grid[y][x] = '.';
@@ -86,18 +83,22 @@ export class Game {
     }
     this.p = { ...body(start.x, start.y, 10, 14), face: 1, coyote: 0, buffer: 0, inv: 0, jumping: false, anim: 0 };
     this.safe = { x: start.x, y: start.y };
-    this.flags = { reuse: false, mfa: false };
-    this.leak = 0;
+    this.clues = {}; // 手に入れた手がかり(bookmark / ledger)
+    this.leak = 0; // 漏洩リスク(満タンで障害報告書)
     this.maxLeak = 0;
+    this.delay = 0; // 業務の遅れ(満タンで始末書)
+    this.maxDelay = 0;
     this.score = 0;
-    this.causes = [];
-    this.judgments = []; // { id, result }
+    this.causes = []; // 漏洩リスクの原因
+    this.delayCauses = []; // 業務の遅れの原因
+    this.overKind = null; // 'leak' | 'delay'
+    this.judgments = []; // { id, tier }
+    this.clock = '9:30';
     this.time = 0;
     this.t = 0;
     this.camX = 0;
     this.camY = this.rows * T - this.vh; // 床が画面の下にくるように。高い画面では上に空が見える
     this.shieldFlash = 0;
-    this.nearDoor = null;
     this.over = false;
     this.hooks.hud?.(this);
   }
@@ -218,11 +219,24 @@ export class Game {
     this.maxLeak = Math.max(this.maxLeak, this.leak);
     if (cause && !this.causes.includes(cause)) this.causes.push(cause);
     this.hooks.hud?.(this);
-    if (this.leak >= 100) {
-      this.over = true;
-      sfx.over();
-      this.hooks.over?.(this);
-    }
+    if (this.leak >= 100) this.gameOver('leak');
+  }
+
+  // ---- 業務の遅れゲージ ----
+  addDelay(n, cause) {
+    if (this.over) return;
+    this.delay = clamp(this.delay + n, 0, 100);
+    this.maxDelay = Math.max(this.maxDelay, this.delay);
+    if (cause && !this.delayCauses.includes(cause)) this.delayCauses.push(cause);
+    this.hooks.hud?.(this);
+    if (this.delay >= 100) this.gameOver('delay');
+  }
+
+  gameOver(kind) {
+    this.over = true;
+    this.overKind = kind;
+    sfx.over();
+    this.hooks.over?.(this);
   }
 
   hurt(cause, n, from) {
@@ -251,30 +265,17 @@ export class Game {
     }
   }
 
-  // ---- 判断シーンや扉の結果を受け取る ----
-  applyScene(id, choice) {
-    // choice: 選んだ選択肢(時間切れなら timeout の内容)。null にはならない
-    Object.assign(this.flags, choice.flag || {});
-    if (choice.leak) this.addLeak(choice.leak, choice.cause);
-    if (choice.result === 'good') this.score += 300;
-    if (id === 'mfa' && this.flags.mfa) this.shieldFlash = 1.5;
-    this.judgments.push({ id, result: choice.result || 'timeout' });
-  }
-
-  enterDoor(door) {
-    if (door.real) {
-      this.judgments.push({ id: 'phishing', result: this.doors.some((d) => d.marked) ? 'bad' : 'good' });
-      this.over = true;
-      sfx.clear();
-      this.hooks.clear?.(this);
-    } else {
-      door.marked = true;
-      this.p.x = door.x - 28;
-      this.p.vx = 0;
-      sfx.bad();
-      this.hooks.banner?.('偽サイトだった! 入力した ID とパスワードが盗まれた……', 'bad');
-      this.addLeak(40, 'phishing');
-    }
+  // ---- 判断シーンの結果を受け取る ----
+  // r: { tier, leak, delay, cause, score, report }  report: 引っかかったあと、すぐ報告したか(true/false/undefined)
+  applyScene(id, r) {
+    let leak = r.leak || 0;
+    if (r.report === true) leak = Math.round(leak / 2);
+    if (leak) this.addLeak(leak, r.cause);
+    if (r.report === false) this.addLeak(15, 'hide');
+    if (r.delay) this.addDelay(r.delay, r.cause);
+    this.score += r.score || 0;
+    this.judgments.push({ id, tier: r.tier });
+    this.hooks.hud?.(this);
   }
 
   // ---- 1コマ分すすめる(dt は 1/60 秒で固定) ----
@@ -332,7 +333,7 @@ export class Game {
     // 落とし穴
     if (p.y > this.rows * T + 24) {
       this.hooks.banner?.('足元を確かめずに、本番環境へ落ちた……', 'bad');
-      this.addLeak(30, 'pit');
+      this.addLeak(10, 'pit');
       if (this.over) return;
       Object.assign(p, { x: this.safe.x, y: this.safe.y, vx: 0, vy: 0, inv: 1.3 });
     }
@@ -371,7 +372,7 @@ export class Game {
             this.defeat(e);
           }
         } else {
-          this.hurt(e.kind === 'phish' ? 'phishMail' : 'weakPass', 20, e);
+          this.hurt(e.kind === 'phish' ? 'phishMail' : 'weakPass', 10, e);
           if (this.over) return;
         }
       }
@@ -408,11 +409,30 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
-        this.hooks.banner?.(h.text, 'info');
+        if (h.line) this.hooks.say?.(h.line);
       }
     }
 
-    // 判断シーンの端末(前を通ったら始まる。飛び越えても逃げられない)
+    // 手がかり(触れると手帳に記録)
+    for (const c of this.clueItems) {
+      if (!c.taken && overlap(p, c)) {
+        c.taken = true;
+        this.clues[c.kind] = true;
+        this.score += 100;
+        sfx.item();
+        this.burst(c.x + 8, c.y + 8, 12, '#ffd23f');
+        this.hooks.clue?.(c.kind);
+        this.hooks.hud?.(this);
+      }
+    }
+
+    // B ボタン(X キー): 手帳を開く
+    if (take('act')) {
+      this.hooks.notebook?.();
+      return;
+    }
+
+    // 判断シーン(端末の前を通ったら始まる。飛び越えても逃げられない)
     for (const term of this.terms) {
       if (!term.used && p.x + p.w > term.x + 4) {
         term.used = true;
@@ -422,37 +442,12 @@ export class Game {
       }
     }
 
-    // 事件: パスワード使い回しのツケ
-    for (const ev of this.events) {
-      if (ev.done || p.x < ev.x) continue;
-      ev.done = true;
-      if (this.flags.reuse && !this.flags.mfa) {
-        sfx.alarm();
-        this.hooks.banner?.('警告: 使い回したパスワードで、不正ログインされた!', 'bad');
-        for (const s of this.spawns) {
-          const e = this.enemy('pass', s.x, s.y - 40);
-          e.awake = true;
-          this.enemies.push(e);
-        }
-        this.addLeak(15, 'credential');
-        if (this.over) return;
-      } else if (this.flags.reuse && this.flags.mfa) {
-        sfx.good();
-        this.shieldFlash = 2;
-        this.hooks.banner?.('使い回したパスワードでログインを試みられた……が、多要素認証が止めた!', 'good');
-      } else {
-        this.hooks.banner?.('どこかで漏れたパスワードが試された。でも使い回していないので、ここは無事。', 'good');
-      }
-    }
-
-    // 扉
-    const near = this.doors.find((d) => Math.abs(p.x + p.w / 2 - (d.x + 8)) < 12 && Math.abs(p.y + p.h - (d.y + d.h)) < 20);
-    if (near !== this.nearDoor) {
-      this.nearDoor = near || null;
-      this.hooks.prompt?.(near ? (near.marked ? 'この扉は偽物だった' : '調べる: 扉の看板を読む') : null);
-    }
-    if (take('act') && near && !near.marked) {
-      this.hooks.door?.(near);
+    // ログアウトゲート(ゴール)
+    if (this.goal && p.x + p.w > this.goal.x + 6) {
+      this.over = true;
+      p.vx = 0;
+      sfx.clear();
+      this.hooks.goal?.(this);
       return;
     }
 
@@ -624,26 +619,26 @@ export class Game {
       }
     }
 
-    // ---- 扉 ----
-    for (const d of this.doors) {
-      const x = X(d.x);
-      const y = Y(d.y);
+    // ---- ログアウトゲート ----
+    if (this.goal) {
+      const x = X(this.goal.x);
+      const y = Y(this.goal.y);
       g.drawImage(S.door, x, y);
-      if (d.marked) {
-        g.strokeStyle = '#ff3b5c';
-        g.lineWidth = 4;
-        g.beginPath();
-        g.moveTo(x + 4, y + 20);
-        g.lineTo(x + 28, y + 60);
-        g.moveTo(x + 28, y + 20);
-        g.lineTo(x + 4, y + 60);
-        g.stroke();
-      }
-      if (d === this.nearDoor && !d.marked) {
-        const ay = y - 16 + Math.round(Math.sin(t * 6) * 2);
-        g.fillStyle = '#fff4b0';
-        for (let i = 0; i < 5; i++) g.fillRect(x + 8 + i * 2, ay + i * 2, 16 - i * 4, 2);
-      }
+      g.fillStyle = `rgba(127,227,255,${0.25 + Math.sin(t * 3) * 0.15})`;
+      g.fillRect(x + 8, y + 34, 16, 30);
+    }
+
+    // ---- 手がかり(光りながら浮く) ----
+    for (const c of this.clueItems) {
+      if (c.taken) continue;
+      const x = X(c.x);
+      const y = Y(c.y) + Math.round(Math.sin(t * 3 + c.x) * 3);
+      const r = 18 + Math.sin(t * 4) * 2;
+      g.fillStyle = 'rgba(255,210,63,0.16)';
+      g.beginPath();
+      g.arc(x + 16, y + 16, r, 0, Math.PI * 2);
+      g.fill();
+      g.drawImage(S[c.kind], x, y);
     }
 
     // ---- データの粒・アイテム ----
@@ -702,22 +697,31 @@ export class Game {
     }
   }
 
-  // クリア時のまとめ
-  summary() {
-    const goods = this.judgments.filter((j) => j.result === 'good').length;
+  // 1日のまとめ(振り返りで使う)
+  summary(grades) {
+    const goods = this.judgments.filter((j) => j.tier === 'best').length;
+    // 100点から、漏洩リスクと業務の遅れの最大値を引く。最善の判断が多いほど少し足す
+    const points = Math.max(0, Math.min(100, 100 - this.maxLeak - this.maxDelay * 0.7 + goods * 2));
+    let g = grades.find((x) => points >= x.min) || grades[grades.length - 1];
+    if (g.grade === 'S' && goods < this.judgments.length) g = grades[1]; // S は全部最善のときだけ
     const badges = [];
     if (this.maxLeak === 0) badges.push('障害ゼロ件(誰にも褒められない)');
-    if (this.judgments.length && this.judgments.every((j) => j.result === 'good')) badges.push('判断ミスゼロ');
-    if (this.flags.reuse && this.flags.mfa) badges.push('多要素認証に救われた人');
+    if (this.judgments.length && goods === this.judgments.length) badges.push('判断ミスゼロ');
+    if (this.clues.bookmark && this.clues.ledger) badges.push('備えあれば憂いなし');
     if (new Date().getHours() === 3) badges.push('午前3時の英雄');
     return {
+      points: Math.round(points),
+      grade: g.grade,
+      boss: g.boss,
       score: this.score,
       time: this.time,
       maxLeak: this.maxLeak,
+      maxDelay: this.maxDelay,
       goods,
       total: this.judgments.length,
+      judgments: this.judgments,
       badges,
-      cards: ['bec', 'reuse', 'mfa', 'phishing'],
+      cards: ['bec', 'phishing', 'verify'],
     };
   }
 }

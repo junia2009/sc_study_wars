@@ -58,6 +58,14 @@ export function buildSprites() {
     crystal: [0, 1, 2, 1].map((f) => toCanvas(A.crystal(f))),
     reboot: toCanvas(A.reboot()),
     shield: toCanvas(A.shield()),
+    bookmark: toCanvas(A.bookmark()),
+    ledger: toCanvas(A.ledger()),
+    faces: {
+      kuroda: toCanvas(A.kuroda()),
+      sato: toCanvas(A.sato()),
+      angler: toCanvas(A.angler()),
+      guard: toCanvas(A.guard('stand')),
+    },
   };
 }
 

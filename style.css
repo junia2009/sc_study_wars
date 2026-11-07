@@ -67,13 +67,14 @@ html, body {
   background: linear-gradient(#000a, #0000);
 }
 #hud > * { white-space: nowrap; flex: none; }
-#hud-stage { color: var(--quiet); }
-#hud .leak { display: flex; align-items: center; gap: 0.4em; }
-#hud .label { color: var(--quiet); }
+#hud-clock { color: var(--yellow); font-variant-numeric: tabular-nums; min-width: 2.6em; }
+#hud .gauges { display: flex; gap: 0.8em; min-width: 0; }
+#hud .gauge { display: flex; align-items: center; gap: 0.35em; }
+#hud .label { color: var(--quiet); font-size: 0.85em; }
 #hud .bar {
   --v: 0;
   position: relative;
-  width: clamp(48px, calc(var(--px) * 56), 180px);
+  width: clamp(36px, calc(var(--px) * 34), 120px);
   height: 0.7em;
   background: #000;
   border: 1px solid #5f574f;
@@ -83,13 +84,14 @@ html, body {
   inset: 0;
   transform-origin: left;
   transform: scaleX(var(--v));
-  background: var(--orange);
   transition: transform 0.25s;
 }
+#hud .leak .bar i { background: var(--orange); }
+#hud .delay .bar i { background: #b18cff; }
 #hud .bar.warn i { background: var(--red); animation: blink 0.6s steps(2) infinite; }
-#hud .mfa { color: var(--blue); }
-#hud-score { margin-left: auto; font-variant-numeric: tabular-nums; }
-#hud { font-size: clamp(12px, calc(var(--px) * 6), 22px); gap: clamp(8px, calc(var(--px) * 6), 20px); }
+#hud .clues { display: flex; gap: 2px; margin-left: auto; }
+#hud .clues img { image-rendering: pixelated; filter: drop-shadow(0 0 3px #ffd23f88); }
+#hud { font-size: clamp(12px, calc(var(--px) * 6), 22px); gap: clamp(8px, calc(var(--px) * 5), 18px); }
 
 @keyframes blink { 50% { opacity: 0.5; } }
 
@@ -266,6 +268,7 @@ body.portrait .btns { right: max(6px, calc(5vw - var(--tol))); }
 
 /* ---------- 一時停止ボタン(HUD の右端) ---------- */
 #hud-pause {
+  flex: none;
   display: grid;
   grid-auto-flow: column;
   gap: 4px;
@@ -370,6 +373,7 @@ button:disabled { opacity: 0.6; cursor: default; }
 .mail-row { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid #dde2ee; }
 .mail-row span { flex: none; width: 3.5em; color: #6b7593; }
 .mail-row b { font-weight: 600; word-break: break-all; }
+.mail-row b, .mock mark { font-variant-ligatures: none; }
 .mail-body, .app-body { padding: 8px 12px 10px; }
 .mail-body p, .app-body p { margin: 0.2em 0; }
 .app-body h3 { font-size: 16px; font-weight: 700; margin: 4px 0 6px; }
@@ -459,6 +463,13 @@ button:disabled { opacity: 0.6; cursor: default; }
 .card a { color: var(--blue); }
 .card.locked { opacity: 0.55; text-align: center; }
 
+/* 横に広い画面(PC): 判断シーンはメールと選択肢を左右に並べる */
+@media (min-width: 900px) and (orientation: landscape) {
+  .scene { width: min(980px, 100%); }
+  .scene-body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
+  .outcome { width: min(640px, 100%); }
+}
+
 /* 横向きで背の低い画面(スマホの横持ち): メールと選択肢を左右に並べる */
 @media (orientation: landscape) and (max-height: 560px) {
   #overlay { padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); }
@@ -520,3 +531,128 @@ button:disabled { opacity: 0.6; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- 顔つきのひとこと(ゲームを止めない) ---------- */
+#banner.talkline { display: flex; align-items: center; gap: 0.6em; text-align: left; }
+#banner.talkline .face { flex: none; image-rendering: pixelated; border-radius: 4px; background: #0b112c; }
+
+/* ---------- 会話ウインドウ ---------- */
+#overlay.is-talk { background: linear-gradient(transparent 40%, #05070fcc); align-items: flex-end; padding: 0; }
+.talk {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  width: min(760px, 100%);
+  min-height: 132px;
+  margin: auto auto 0;
+  padding: 16px 18px max(18px, env(safe-area-inset-bottom));
+  background: #0b112cf2;
+  border: 2px solid var(--line);
+  border-bottom: 0;
+  box-shadow: 0 -6px 24px #0008;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.talk-face { flex: none; width: 72px; }
+.talk-face .face { image-rendering: pixelated; border-radius: 8px; background: #141c43; border: 1px solid #ffffff22; }
+.talk.sys .talk-face { display: none; }
+.talk-main { flex: 1; min-width: 0; }
+.talk-name { margin: 0 0 4px; font-size: 14px; color: var(--yellow); min-height: 1em; }
+.talk.sys .talk-name { display: none; }
+.talk-text { margin: 0; font-size: 17px; line-height: 1.7; }
+.talk.sys .talk-text { color: var(--blue); }
+.talk-next { position: absolute; right: 18px; bottom: max(12px, env(safe-area-inset-bottom)); color: var(--quiet); animation: blink 0.8s steps(2) infinite; }
+.talk-skip { position: absolute; top: -40px; right: 10px; font-size: 13px; padding: 0.3em 0.8em; background: #0b112ccc; }
+body.portrait .talk { min-height: 168px; }
+body.portrait .talk-text { font-size: 16px; }
+
+/* ---------- 名前 ---------- */
+.namebox { text-align: center; }
+.namebox .face { image-rendering: pixelated; border-radius: 8px; background: #141c43; }
+.namebox input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 0.6em 0.8em;
+  font: inherit;
+  font-size: 20px;
+  text-align: center;
+  color: var(--ink);
+  background: #000;
+  border: 2px solid var(--blue);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ---------- 手帳 ---------- */
+.notebook h2 { font-size: 22px; }
+.notebook .lead { font-size: 13px; color: var(--quiet); }
+.clue { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; padding: 10px 12px; background: #000; border-left: 3px solid var(--yellow); }
+.clue img { image-rendering: pixelated; flex: none; }
+.clue b { display: block; color: var(--yellow); font-weight: normal; }
+.clue code { display: block; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #e6ecff; word-break: break-all; }
+.clue .clue-hint { margin: 4px 0 0; font-size: 12px; color: var(--quiet); }
+.clue.missing { border-left-color: #5f574f; opacity: 0.75; }
+.clue.missing b { color: var(--quiet); }
+
+/* ---------- 判断シーンの部品 ---------- */
+.count.calm { color: var(--green); font-size: 13px; }
+.asker { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.asker .face { flex: none; image-rendering: pixelated; border-radius: 6px; background: #141c43; }
+.asker p { position: relative; margin: 0; padding: 8px 12px; background: #1b2550; border-radius: 10px; font-size: 14px; line-height: 1.6; }
+.asker p b { display: block; font-size: 12px; font-weight: normal; color: var(--yellow); }
+.asker.self p { background: #2a1b40; }
+.choices button { display: flex; align-items: flex-start; gap: 0.6em; }
+.choices button kbd { flex: none; margin: 0; }
+.choices button em { display: block; margin-top: 2px; font-style: normal; font-size: 12px; color: var(--yellow); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.tools .inspect { margin: 0; font-size: 14px; }
+.tools .inspect.on { border-color: var(--yellow); }
+.detail.notebook-in { padding: 0; background: none; border: 0; }
+.detail.inspect-out { margin-top: 8px; padding: 8px 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; word-break: break-all; }
+mark { color: #1d2433; background: #ffd23f; padding: 0 2px; border-radius: 2px; box-shadow: 0 0 0 2px #ffd23f66; }
+
+/* 結果 */
+.outcome .mark small { display: block; font-size: 14px; letter-spacing: 0.1em; }
+.outcome.best { border-color: var(--green); }
+.outcome.best .mark, .outcome.best h2 { color: var(--green); }
+.outcome.safe .mark, .outcome.safe h2 { color: var(--blue); }
+.outcome.ok .mark, .outcome.ok h2, .outcome.close .mark, .outcome.close h2 { color: var(--yellow); }
+.outcome.fooled { border-color: var(--red); }
+.outcome.fooled .mark, .outcome.fooled h2 { color: var(--red); }
+.outcome .rule { margin-top: 10px; padding: 6px 10px; font-size: 13px; color: #e6ecff; background: #1b2550; border-radius: 6px; text-align: left; }
+.outcome .effects { display: flex; justify-content: center; gap: 12px; font-size: 14px; }
+.outcome .effects .leak { color: var(--orange); }
+.outcome .effects .delay { color: #b18cff; }
+.outcome .effects .none { color: var(--green); }
+.outcome .ask-again { margin-top: 14px; color: var(--yellow); }
+.outcome .choices { text-align: left; }
+.evidence { margin-top: 10px; text-align: left; }
+.evidence summary { cursor: pointer; color: var(--yellow); font-size: 14px; margin-bottom: 6px; }
+.evidence .mock { font-size: 13px; }
+.outcome { max-height: none; }
+
+/* ---------- 振り返り ---------- */
+.review { text-align: center; }
+.review-day { margin: 0; color: var(--quiet); }
+.grade { display: inline-flex; flex-direction: column; align-items: center; margin: 6px 0; }
+.grade b { font-size: 72px; line-height: 1; font-weight: normal; text-shadow: 3px 3px 0 #000; }
+.grade span { font-size: 12px; color: var(--quiet); }
+.grade-S b { color: var(--yellow); }
+.grade-A b { color: var(--green); }
+.grade-B b { color: var(--blue); }
+.grade-C b { color: var(--orange); }
+.grade-D b { color: var(--red); }
+.boss-comment { display: flex; gap: 10px; align-items: center; margin: 8px 0; text-align: left; }
+.boss-comment .face { flex: none; image-rendering: pixelated; border-radius: 6px; background: #141c43; }
+.boss-comment p { margin: 0; padding: 8px 12px; background: #1b2550; border-radius: 10px; font-size: 14px; }
+.boss-comment p b { display: block; font-size: 11px; font-weight: normal; color: var(--yellow); }
+.judges { list-style: none; padding: 0; margin: 8px 0; text-align: left; }
+.judges li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-bottom: 1px solid #ffffff14; font-size: 14px; }
+.judges li span { width: 1.4em; text-align: center; }
+.judges li em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--quiet); }
+.judges li.best span { color: var(--green); }
+.judges li.safe span { color: var(--blue); }
+.judges li.ok span, .judges li.close span { color: var(--yellow); }
+.judges li.fooled span { color: var(--red); }
+.review .next { font-size: 13px; color: var(--quiet); }

@@ -20,14 +20,16 @@
     <div id="stage-wrap">
       <canvas id="screen" width="640" height="360" aria-label="ゲーム画面"></canvas>
       <div id="hud" aria-live="off">
-        <span id="hud-stage">経理部</span>
-        <span class="leak">
-          <span class="label">漏洩</span>
-          <span id="hud-leak" class="bar" role="meter" aria-label="漏洩ゲージ"><i></i></span>
-          <span id="hud-leak-num">0%</span>
+        <span id="hud-clock">9:30</span>
+        <span class="gauges">
+          <span class="gauge leak" title="漏洩リスク(満タンで障害報告書)">
+            <span class="label">漏洩</span><span id="hud-leak" class="bar" role="meter" aria-label="漏洩リスク"><i></i></span>
+          </span>
+          <span class="gauge delay" title="業務の遅れ(満タンで始末書)">
+            <span class="label">遅れ</span><span id="hud-delay" class="bar" role="meter" aria-label="業務の遅れ"><i></i></span>
+          </span>
         </span>
-        <span id="hud-mfa" class="mfa" hidden title="多要素認証の盾">🛡 MFA</span>
-        <span id="hud-score">00000</span>
+        <span id="hud-clues" class="clues" aria-label="手に入れた手がかり"></span>
         <button id="hud-pause" type="button" aria-label="一時停止"><i></i><i></i></button>
       </div>
       <div id="banner" role="status" aria-live="polite"></div>
@@ -42,7 +44,7 @@
         <span class="key right" data-btn="right" data-show="right"><i></i></span>
       </div>
       <div class="cluster btns" data-zone="btns">
-        <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>調べる</small></span>
+        <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>手帳</small></span>
         <span class="pad-btn jump" data-btn="jump" data-show="jump"><b>A</b><small>ジャンプ</small></span>
       </div>
     </div>

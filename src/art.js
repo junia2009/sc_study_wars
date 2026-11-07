@@ -460,6 +460,139 @@ export function shield() {
   return outline(G, C.ol);
 }
 
+// ---- 手がかりアイテム ----
+// 公式ブックマーク(青いしおりに金の星)
+export function bookmark() {
+  const G = grid(32, 32);
+  shape(
+    G, 9, 3, 22, 28,
+    (x, y) => y <= 22 || Math.abs(x - 15.5) >= (y - 22) * 1.2,
+    (x) => (x < 12 ? C.hl : x < 19 ? C.b2 : C.b3),
+  );
+  // 星
+  const star = [[15, 8], [16, 8], [14, 10], [15, 10], [16, 10], [17, 10], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [17, 11], [18, 11], [19, 11], [14, 12], [15, 12], [16, 12], [17, 12], [13, 13], [14, 13], [17, 13], [18, 13], [15, 9], [16, 9], [13, 14], [18, 14]];
+  for (const [x, y] of star) set(G, x, y + 2, C.gold2);
+  set(G, 15, 10, C.gold1);
+  set(G, 15, 11, C.gold1);
+  return outline(G, C.ol);
+}
+
+// 連絡先台帳(緑の手帳。表紙に電話のマーク)
+export function ledger() {
+  const G = grid(32, 32);
+  rect(G, 6, 5, 25, 27, '#1f7a5a');
+  rect(G, 6, 5, 8, 27, '#165c44');
+  rect(G, 23, 6, 26, 27, '#f4efe6');
+  for (let y = 8; y < 27; y += 3) rect(G, 24, y, 26, y, '#c9b8d6');
+  rect(G, 10, 9, 21, 16, '#e6f7ee');
+  // 電話のマーク
+  rect(G, 12, 11, 13, 14, '#165c44');
+  rect(G, 18, 11, 19, 14, '#165c44');
+  rect(G, 12, 11, 19, 11, '#165c44');
+  rect(G, 14, 13, 17, 14, '#165c44');
+  rect(G, 10, 19, 21, 19, '#7fd8b0');
+  rect(G, 10, 22, 18, 22, '#7fd8b0');
+  rect(G, 9, 6, 22, 6, '#3fae84');
+  return outline(G, C.ol);
+}
+
+// ---- 登場人物の顔(会話と判断シーンに出る) ----
+const SKIN = ['#ffe0c2', '#f2c9a0', '#d9a77e'];
+function faceBase(G, cx, cy, rx, ry) {
+  shape(
+    G, 0, 0, 31, 31,
+    (x, y) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1,
+    (x, y) => {
+      const s = (x - cx) / rx + (y - cy) / ry * 0.6;
+      return s < -0.6 ? SKIN[0] : s < 0.55 ? SKIN[1] : SKIN[2];
+    },
+  );
+}
+
+// 黒田先輩: ぼさぼさの黒髪、眼鏡、目の下のくま、パーカー
+export function kuroda() {
+  const G = grid(32, 32);
+  shape(G, 2, 23, 29, 31, (x, y) => Math.abs(x - 15.5) <= 6 + (y - 23) * 1.4, (x) => (x < 12 ? '#4a5370' : x < 20 ? '#3a4158' : '#2a3044'));
+  rect(G, 12, 23, 19, 24, '#2a3044');
+  rect(G, 13, 21, 18, 23, SKIN[2]);
+  faceBase(G, 15.5, 14, 7.5, 8.5);
+  // 髪
+  shape(G, 5, 1, 27, 12, (x, y) => ((x - 15.5) / 9.5) ** 2 + ((y - 11) / 8) ** 2 <= 1 && (y < 8 || x < 9 || x > 22), (x, y) => ((x + y) % 5 === 0 ? '#3d3d52' : '#24243a'));
+  for (const [x, y] of [[8, 3], [11, 2], [14, 1], [17, 2], [20, 2], [23, 4], [7, 6]]) rect(G, x, y, x + 1, y + 1, '#24243a');
+  for (let x = 9; x <= 22; x++) if (x % 3) set(G, x, 8, '#24243a');
+  // 眼鏡
+  for (const lx of [9, 17]) {
+    rect(G, lx, 12, lx + 5, 12, '#14141f');
+    rect(G, lx, 16, lx + 5, 16, '#14141f');
+    rect(G, lx, 12, lx, 16, '#14141f');
+    rect(G, lx + 5, 12, lx + 5, 16, '#14141f');
+    rect(G, lx + 1, 13, lx + 4, 15, '#cfeaff');
+  }
+  rect(G, 15, 13, 16, 13, '#14141f');
+  // 眠そうな目と、くま
+  rect(G, 11, 14, 13, 14, '#24243a');
+  rect(G, 19, 14, 21, 14, '#24243a');
+  rect(G, 10, 18, 13, 18, '#b98a8a');
+  rect(G, 18, 18, 21, 18, '#b98a8a');
+  rect(G, 14, 20, 17, 20, '#9a5a4a');
+  return outline(G, '#0b0d18');
+}
+
+// 佐藤さん: 茶色のボブ、カーディガン
+export function sato() {
+  const G = grid(32, 32);
+  shape(G, 2, 23, 29, 31, (x, y) => Math.abs(x - 15.5) <= 6 + (y - 23) * 1.4, (x) => (x < 11 ? '#f1d9b5' : x < 21 ? '#e2c497' : '#c9a777'));
+  rect(G, 13, 23, 18, 27, '#ffffff');
+  rect(G, 15, 24, 16, 31, '#e2c497');
+  rect(G, 13, 21, 18, 23, SKIN[2]);
+  // 後ろの髪(ボブ)
+  shape(G, 4, 2, 27, 23, (x, y) => ((x - 15.5) / 10.5) ** 2 + ((y - 12) / 10) ** 2 <= 1 && y <= 22, (x) => (x < 10 ? '#8a4f36' : '#6b3b2a'));
+  faceBase(G, 15.5, 15, 7, 8);
+  // 前髪
+  shape(G, 6, 4, 25, 11, (x, y) => ((x - 15.5) / 9.5) ** 2 + ((y - 12) / 8.5) ** 2 <= 1 && y <= 10 - ((x * 7) % 3 === 0 ? 1 : 0), (x) => (x < 11 ? '#8a4f36' : '#6b3b2a'));
+  rect(G, 9, 5, 12, 5, '#b3714f');
+  // 目・頬・口
+  for (const ex of [11, 18]) {
+    rect(G, ex, 14, ex + 2, 16, '#2a1a1a');
+    set(G, ex, 14, '#ffffff');
+  }
+  rect(G, 10, 18, 11, 18, '#f59a9a');
+  rect(G, 20, 18, 21, 18, '#f59a9a');
+  rect(G, 14, 20, 17, 20, '#c45a5a');
+  set(G, 13, 19, '#c45a5a');
+  set(G, 18, 19, '#c45a5a');
+  return outline(G, '#2a140c');
+}
+
+// アングラー: 深いフード、赤く光る目、釣り針の飾り
+export function angler(blink = false) {
+  const G = grid(32, 32);
+  shape(G, 1, 20, 30, 31, (x, y) => Math.abs(x - 15.5) <= 8 + (y - 20) * 1.3, (x) => (x < 10 ? '#3a2d5c' : x < 22 ? '#2a2140' : '#1b1530'));
+  shape(
+    G, 3, 2, 28, 27,
+    (x, y) => ((x - 15.5) / 11) ** 2 + ((y - 15) / 12.5) ** 2 <= 1,
+    (x, y) => {
+      const s = (x - 15.5) / 11 + (y - 15) / 12.5;
+      return s < -0.5 ? '#4b3a78' : s < 0.5 ? '#2f2550' : '#1f1838';
+    },
+  );
+  shape(G, 8, 9, 23, 25, (x, y) => ((x - 15.5) / 6.5) ** 2 + ((y - 17) / 7.5) ** 2 <= 1, () => '#07050e');
+  if (!blink) {
+    rect(G, 11, 15, 13, 16, '#ff3b5c');
+    rect(G, 18, 15, 20, 16, '#ff3b5c');
+    set(G, 11, 15, '#ffc2cf');
+    set(G, 18, 15, '#ffc2cf');
+  } else {
+    rect(G, 11, 16, 13, 16, '#ff3b5c');
+    rect(G, 18, 16, 20, 16, '#ff3b5c');
+  }
+  for (const x of [13, 15, 17]) set(G, x, 21, '#c9d2e3');
+  // 釣り針の飾り
+  rect(G, 27, 3, 27, 12, C.hook2);
+  for (const [x, y] of [[27, 13], [27, 14], [26, 15], [25, 15], [24, 14], [24, 13], [24, 12]]) set(G, x, y, C.hook1);
+  return outline(G, '#05030a');
+}
+
 // すべての絵(形のチェック用)
 export function allArt() {
   return {
@@ -478,5 +611,10 @@ export function allArt() {
     crystal: crystal(0),
     reboot: reboot(),
     shield: shield(),
+    bookmark: bookmark(),
+    ledger: ledger(),
+    kuroda: kuroda(),
+    sato: sato(),
+    angler: angler(),
   };
 }
