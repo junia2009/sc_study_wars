@@ -66,30 +66,39 @@ export function initInput(onAnyInput) {
 }
 
 // ---- スマホのコントローラー ----
-// 指ごとに「今どこにあるか」から、押しているボタンを毎回決め直す。
-//   十字キー: 枠の真ん中より左なら左、右なら右(真ん中付近は直前の向きを保つ)
-//   ボタン:   いちばん近いボタン(すき間を押しても、近いほうが反応する)
-// 指は枠の外へ出ても追いかける(setPointerCapture)ので、滑らせても途切れない。
+// 押せるのは、ボタンの上と、その周り(.cluster の余白 = 指のずれの許容分)だけ。
+// 指ごとに「今どこにあるか」から、押しているボタンを毎回決め直すので、
+// 左右のキーの間を滑らせると向きが切り替わる。指を大きく外へ離すと、押していないことになる。
 const fingers = new Map(); // pointerId → { zone, name }
+const RELEASE_PX = 48; // ボタンからこれ以上離れたら、押していないことにする
+
+// 点から四角までの距離(中なら 0)
+function distToRect(x, y, r) {
+  const dx = Math.max(r.left - x, 0, x - r.right);
+  const dy = Math.max(r.top - y, 0, y - r.bottom);
+  return Math.hypot(dx, dy);
+}
 
 function pick(zone, x, y, prev) {
-  if (zone.dataset.zone === 'dpad') {
-    // 押せる範囲は広いが、左右の境目は「見えている十字キーの真ん中」にする
-    const r = (zone.querySelector('.dpad-face') || zone).getBoundingClientRect();
-    const dx = x - (r.left + r.width / 2);
-    if (Math.abs(dx) < r.width * 0.08 && prev) return prev;
-    return dx < 0 ? 'left' : 'right';
-  }
   let best = null;
   let bestD = Infinity;
+  const ds = {};
   for (const b of zone.querySelectorAll('[data-btn]')) {
     const r = b.getBoundingClientRect();
-    const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+    // 丸いボタンは、角の外側を押せないように円で測る
+    const round = b.classList.contains('pad-btn');
+    const d = round
+      ? Math.max(0, Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) - r.width / 2)
+      : distToRect(x, y, r);
+    ds[b.dataset.btn] = d;
     if (d < bestD) {
       bestD = d;
       best = b.dataset.btn;
     }
   }
+  if (bestD > RELEASE_PX) return null;
+  // 境目でちらつかないよう、直前のボタンが同じくらい近ければそのまま
+  if (prev && ds[prev] !== undefined && ds[prev] <= bestD + 6) return prev;
   return best;
 }
 
@@ -118,6 +127,7 @@ function initTouch(onAnyInput) {
         /* 取れなくても動く */
       }
       fingers.set(e.pointerId, { zone, name: pick(zone, e.clientX, e.clientY, null) });
+      zone.classList.add('touching');
       syncTouch();
     });
     zone.addEventListener('pointermove', (e) => {
@@ -131,6 +141,7 @@ function initTouch(onAnyInput) {
     });
     const up = (e) => {
       if (!fingers.delete(e.pointerId)) return;
+      if (![...fingers.values()].some((f) => f.zone === zone)) zone.classList.remove('touching');
       syncTouch();
     };
     zone.addEventListener('pointerup', up);

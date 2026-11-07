@@ -37,7 +37,7 @@ function setKeys(fn) {
 
 // ---------------- HUD ----------------
 export function updateHud(game) {
-  $('#hud-stage').textContent = game.stage.name;
+  $('#hud-stage').textContent = game.stage.name.replace(/^STAGE \d+ /, '');
   $('#hud-score').textContent = String(game.score).padStart(5, '0');
   const bar = $('#hud-leak');
   bar.style.setProperty('--v', game.leak / 100);
@@ -77,7 +77,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
         <button data-act="mute" class="ghost">${muted ? '音: オフ' : '音: オン'}</button>
       </div>
       <p class="tip"><span>Tips</span>${esc(tip)}</p>
-      <p class="keys">PC: ← → 移動 / Z・スペース ジャンプ / X・↑ 調べる<br>スマホ: 縦でも横でも。十字キーは指を滑らせて向きを変えられる</p>
+      <p class="keys">PC: ← → 移動 / Z・スペース ジャンプ / X・↑ 調べる / Esc 一時停止<br>スマホ: 縦でも横でも。左右のキーは、指を滑らせて切り替えられる</p>
       <p class="fine">登場する会社・人物・ドメインはすべて架空です。</p>
     </div>`,
     'is-title',
@@ -85,6 +85,27 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
   on('[data-act=start]', onStart);
   on('[data-act=cards]', onCards);
   on('[data-act=mute]', onMute);
+}
+
+// ---------------- 一時停止 ----------------
+export function showPause({ muted, onResume, onRestart, onTitle, onMute }) {
+  setKeys(null);
+  show(
+    `<div class="panel pause" role="dialog" aria-label="一時停止">
+      <h2>PAUSE</h2>
+      <div class="actions">
+        <button class="primary" data-act="resume" data-autofocus>つづける</button>
+        <button data-act="restart">ステージを最初から</button>
+        <button data-act="mute">${muted ? '音: オフ' : '音: オン'}</button>
+        <button data-act="title" class="ghost">タイトルへ</button>
+      </div>
+    </div>`,
+    'is-dialog',
+  );
+  on('[data-act=resume]', onResume);
+  on('[data-act=restart]', onRestart);
+  on('[data-act=mute]', onMute);
+  on('[data-act=title]', onTitle);
 }
 
 // ---------------- 判断シーン ----------------

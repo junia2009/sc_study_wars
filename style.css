@@ -66,14 +66,14 @@ html, body {
   pointer-events: none;
   background: linear-gradient(#000a, #0000);
 }
+#hud > * { white-space: nowrap; flex: none; }
 #hud-stage { color: var(--quiet); }
 #hud .leak { display: flex; align-items: center; gap: 0.4em; }
 #hud .label { color: var(--quiet); }
 #hud .bar {
   --v: 0;
   position: relative;
-  width: calc(var(--px) * 56);
-  min-width: 60px;
+  width: clamp(48px, calc(var(--px) * 56), 180px);
   height: 0.7em;
   background: #000;
   border: 1px solid #5f574f;
@@ -89,6 +89,7 @@ html, body {
 #hud .bar.warn i { background: var(--red); animation: blink 0.6s steps(2) infinite; }
 #hud .mfa { color: var(--blue); }
 #hud-score { margin-left: auto; font-variant-numeric: tabular-nums; }
+#hud { font-size: clamp(12px, calc(var(--px) * 6), 22px); gap: clamp(8px, calc(var(--px) * 6), 20px); }
 
 @keyframes blink { 50% { opacity: 0.5; } }
 
@@ -111,8 +112,7 @@ html, body {
 }
 #banner.show { opacity: 1; transform: translate(-50%, 0); }
 #banner { z-index: 5; }
-/* 縦向きは、ゲーム画面にかぶらないよう、画面のすぐ下に出す */
-body.portrait #banner { top: calc(100% + 12px); width: max-content; max-width: calc(100vw - 32px); }
+body.portrait #banner { font-size: 14px; max-width: 90%; width: max-content; padding: 0.5em 0.8em; }
 #banner.good { border-color: var(--green); }
 #banner.bad { border-color: var(--red); color: #ffd0dc; }
 #banner.info { border-color: var(--blue); }
@@ -132,12 +132,17 @@ body.portrait #banner { top: calc(100% + 12px); width: max-content; max-width: c
 }
 
 /* ---------- スマホのコントローラー ---------- */
-/* 見た目(丸や十字)より、指で押せる範囲(.zone)をずっと広く取っている */
+/* 押せる範囲 = ボタンの見た目 + まわりの余白(.cluster の padding = 指のずれの許容分) */
 #pad { display: none; }
 @media (pointer: coarse) { #pad { display: block; } }
 body.touch #pad { display: block; }
 
 #pad {
+  --key: 72px;   /* 左右キーの大きさ */
+  --gap: 10px;   /* 左右キーの間 */
+  --a: 86px;     /* A(ジャンプ) */
+  --b: 62px;     /* B(調べる)。A の左上に、斜めに少し重ねて置く */
+  --tol: 14px;   /* 指のずれの許容分 */
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -145,143 +150,141 @@ body.touch #pad { display: block; }
   -webkit-user-select: none;
   user-select: none;
 }
-.zone {
+.cluster {
   position: absolute;
-  bottom: 0;
+  padding: var(--tol);
   pointer-events: auto;
   touch-action: none;
   -webkit-touch-callout: none;
 }
-/* 横向き: 画面の左下・右下の広い範囲が、そのまま押せる場所 */
-.dpad {
-  left: 0;
-  width: min(42vw, 320px);
-  height: min(62vh, 260px);
-  display: flex;
-  align-items: flex-end;
-  padding: 0 0 max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-}
-.btns {
-  right: 0;
-  width: min(42vw, 320px);
-  height: min(62vh, 260px);
-}
+.dpad { display: flex; gap: var(--gap); }
+.btns { width: calc(var(--b) * 0.6 + var(--a) + 2 * var(--tol)); height: calc(var(--b) * 0.9 + var(--a) + 2 * var(--tol)); }
 
-.dpad-face {
-  display: flex;
-  width: 156px;
-  height: 76px;
-  border-radius: 38px;
-  background: #0b112ccc;
-  border: 2px solid #ffffff33;
-  box-shadow: inset 0 2px 0 #ffffff14, 0 4px 0 #0008;
-  overflow: hidden;
+/* 左右キー: 角の丸い四角。押すと沈んで光る */
+.key {
+  position: relative;
+  width: var(--key);
+  height: var(--key);
+  border-radius: 22px;
+  background: linear-gradient(#1f2a5a, #141c43);
+  border: 1px solid #ffffff24;
+  box-shadow: 0 5px 0 #04060f, inset 0 1px 0 #ffffff26;
+  transition: transform 0.05s, box-shadow 0.05s, background 0.05s;
 }
-.arrow { position: relative; flex: 1; transition: background 0.06s; }
-.arrow + .arrow { border-left: 2px solid #ffffff22; }
-.arrow::before {
-  content: '';
+.key i {
   position: absolute;
   top: 50%;
   left: 50%;
-  border: 13px solid transparent;
+  border: 14px solid transparent;
   transform: translate(-50%, -50%);
 }
-.arrow.left::before { border-right: 18px solid #ffffffcc; border-left-width: 0; margin-left: -4px; }
-.arrow.right::before { border-left: 18px solid #ffffffcc; border-right-width: 0; margin-left: 4px; }
-.arrow.on { background: #29adff66; }
-.arrow.on::before { filter: drop-shadow(0 0 4px #7fe3ff); }
+.key.left i { border-right: 20px solid #e6ecff; border-left-width: 0; margin-left: -3px; }
+.key.right i { border-left: 20px solid #e6ecff; border-right-width: 0; margin-left: 3px; }
 
+/* A・B: 丸いボタン */
 .pad-btn {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   border-radius: 50%;
-  color: #ffffffdd;
-  background: #0b112ccc;
-  border: 2px solid #ffffff33;
-  box-shadow: inset 0 2px 0 #ffffff14, 0 4px 0 #0008;
-  transition: transform 0.06s, background 0.06s;
+  color: #eef2ff;
+  background: linear-gradient(#1f2a5a, #141c43);
+  border: 1px solid #ffffff24;
+  box-shadow: 0 5px 0 #04060f, inset 0 1px 0 #ffffff26;
+  transition: transform 0.05s, box-shadow 0.05s, background 0.05s;
 }
-.pad-btn b { font-size: 24px; font-weight: normal; line-height: 1; }
-.pad-btn small { font-size: 11px; line-height: 1; opacity: 0.85; }
+.pad-btn b { font-size: 26px; font-weight: normal; line-height: 1; }
+.pad-btn small { font-size: 11px; line-height: 1; color: #b9c3e6; }
 .pad-btn.jump {
-  width: 86px;
-  height: 86px;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(16px, env(safe-area-inset-bottom));
-  border-color: #ffd23f88;
+  width: var(--a);
+  height: var(--a);
+  left: calc(var(--tol) + var(--b) * 0.6);
+  top: calc(var(--tol) + var(--b) * 0.9);
+  background: linear-gradient(#ffd23f, #e89a16);
+  border-color: #fff4b0aa;
+  color: #3a1d02;
+  box-shadow: 0 5px 0 #7a4205, inset 0 1px 0 #fff4b0;
 }
+.pad-btn.jump small { color: #5a3208; }
 .pad-btn.act {
-  width: 66px;
-  height: 66px;
-  right: calc(max(18px, env(safe-area-inset-right)) + 98px);
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 44px);
+  width: var(--b);
+  height: var(--b);
+  left: var(--tol);
+  top: var(--tol);
 }
-.pad-btn.on { background: #29adff66; border-color: var(--blue); transform: translateY(3px); box-shadow: inset 0 2px 0 #ffffff14, 0 1px 0 #0008; }
-.pad-btn.jump.on { background: #ffd23f55; border-color: var(--yellow); }
 
-/* 横向きはゲーム画面に重なるので、後ろの敵が透けて見えるようにする */
-body:not(.portrait) .dpad-face,
-body:not(.portrait) .pad-btn { background: #0b112c59; border-color: #ffffff40; box-shadow: none; }
-body:not(.portrait) .pad-btn.jump { border-color: #ffd23f80; }
-body:not(.portrait) .arrow.left::before { border-right-color: #ffffffb3; }
-body:not(.portrait) .arrow.right::before { border-left-color: #ffffffb3; }
+/* 押している */
+.key.on, .pad-btn.act.on {
+  transform: translateY(4px);
+  background: linear-gradient(#2b7fd6, #1a5fb4);
+  box-shadow: 0 1px 0 #04060f, inset 0 1px 0 #bff0ff66, 0 0 16px #29adff88;
+}
+.pad-btn.jump.on {
+  transform: translateY(4px);
+  background: linear-gradient(#fff07a, #ffbf2e);
+  box-shadow: 0 1px 0 #7a4205, inset 0 1px 0 #fff4b0, 0 0 18px #ffd23f99;
+}
 
-/* 縦向き: 上がゲーム画面、下の半分がまるごとコントローラー */
+/* 横向き: ゲーム画面の左下・右下に重ねる。後ろが透けるように半透明 */
+body:not(.portrait) #pad { --key: 62px; --a: 74px; --b: 54px; }
+body:not(.portrait) .dpad { left: max(6px, env(safe-area-inset-left)); bottom: max(4px, env(safe-area-inset-bottom)); }
+body:not(.portrait) .btns { right: max(6px, env(safe-area-inset-right)); bottom: max(4px, env(safe-area-inset-bottom)); }
+body:not(.portrait) .key,
+body:not(.portrait) .pad-btn.act { background: #141c4373; box-shadow: 0 3px 0 #04060f80, inset 0 1px 0 #ffffff1f; }
+body:not(.portrait) .pad-btn.jump { background: #ffd23f8c; }
+body:not(.portrait) .key.on,
+body:not(.portrait) .pad-btn.act.on { background: #2b7fd6b3; }
+
+/* 縦向き: 上がゲーム画面、下に薄いコントローラーの台 */
 body.portrait #app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: 1fr auto;
   justify-items: center;
-  align-items: start;
   padding-top: env(safe-area-inset-top);
 }
-body.portrait #stage-wrap { box-shadow: 0 1px 0 #1a2350; }
+body.portrait #stage-wrap { align-self: end; box-shadow: none; }
 body.portrait #pad {
   position: relative;
   inset: auto;
+  z-index: 1;
   width: 100%;
-  height: 100%;
-  background:
-    radial-gradient(120% 80% at 50% 0%, #121a44 0%, #070a1c 70%);
-  border-top: 2px solid #1a2350;
+  height: calc(var(--deck, 200px) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(#0e1538, #080b1f 60%);
+  border-top: 1px solid #ffffff1a;
+  box-shadow: 0 -10px 24px #0008;
 }
-body.portrait .zone { top: 0; bottom: 0; height: auto; width: 50%; }
-body.portrait .dpad {
-  align-items: center;
-  justify-content: center;
-  padding: 0 0 env(safe-area-inset-bottom);
+body.portrait .cluster { top: 50%; transform: translateY(calc(-50% - env(safe-area-inset-bottom) / 2)); }
+body.portrait .dpad { left: max(6px, calc(5vw - var(--tol))); }
+body.portrait .btns { right: max(6px, calc(5vw - var(--tol))); }
+@media (max-width: 360px) {
+  body.portrait #pad { --key: 62px; --a: 76px; --b: 54px; --gap: 8px; }
 }
-body.portrait .dpad-face { width: min(40vw, 176px); height: min(22vw, 96px); border-radius: 48px; }
-body.portrait .pad-btn.jump {
-  width: min(25vw, 100px);
-  height: min(25vw, 100px);
-  right: 7vw;
-  bottom: auto;
-  top: calc(50% - min(12.5vw, 50px) + 4vw);
+
+/* ---------- 一時停止ボタン(HUD の右端) ---------- */
+#hud-pause {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  place-content: center;
+  width: 36px;
+  height: 30px;
+  margin: -4px 0 -4px 10px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #ffffff33;
+  background: #0b112c99;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
-body.portrait .pad-btn.act {
-  width: min(19vw, 76px);
-  height: min(19vw, 76px);
-  right: calc(7vw + min(25vw, 100px) + 3vw);
-  bottom: auto;
-  top: calc(50% - min(9.5vw, 38px) - 7vw);
-}
-body.portrait #pad { z-index: 1; }
-body.portrait #pad::after {
-  content: '指を滑らせると向きが変わる';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: max(10px, env(safe-area-inset-bottom));
-  text-align: center;
-  font-size: 11px;
-  color: #ffffff4d;
-  pointer-events: none;
-}
+#hud-pause i { display: block; width: 4px; height: 12px; background: #e6ecff; border-radius: 1px; }
+
+.pause { text-align: center; }
+.pause h2 { font-size: 26px; letter-spacing: 0.1em; }
+.pause .actions { flex-direction: column; }
 
 /* ---------- 重ねる画面 ---------- */
 #overlay {

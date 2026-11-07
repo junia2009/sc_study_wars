@@ -43,9 +43,11 @@ let owned = store.get('scsw.cards', []);
 setMuted(store.get('scsw.muted', false));
 
 // ---- 画面の大きさ ----
-// 画面の形に合わせて、拡大率と「見える横幅」を決める。
+// 画面の形に合わせて、拡大率と「見える範囲(横 vw × 縦 vh)」を決める。
 //   横向き・PC: 高さいっぱいに映し、横幅は画面の形に合わせて 240〜400 の間で広げる(黒い帯を出さない)
-//   縦向き:     下にコントローラーの場所を空け、見える横幅を絞ってキャラを大きく映す(200〜320)
+//   縦向き:     下のコントローラーの台を除いた場所を、まるごとゲーム画面にする。
+//               見える横幅を 10〜13 マスに絞ってキャラを大きくし、余った高さは床の上の景色として映す
+const PORTRAIT_VW = 216;
 function fit() {
   const wrap = document.querySelector('#stage-wrap');
   const portrait = innerHeight > innerWidth;
@@ -53,12 +55,22 @@ function fit() {
   const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   let s;
   let vw;
+  let vh = VIEW_H;
   if (portrait) {
+    // 縦向き: 見える範囲がだいたい「横 168〜216 × 縦 250 前後」になるように寄る。
+    // 縦長の画面ほど寄ってキャラを大きくし、余った高さは床の上の景色として映す
     const top = parseFloat(getComputedStyle(document.querySelector('#app')).paddingTop) || 0;
-    const padH = Math.max(260, innerHeight * 0.42);
-    s = (innerHeight - top - padH) / VIEW_H;
-    vw = clampN(innerWidth / s, 200, VIEW_W);
-    s = Math.min(s, innerWidth / vw);
+    const deck = document.querySelector('#pad').getBoundingClientRect().height; // 画面のボタンがないときは 0
+    const areaH = innerHeight - top - deck;
+    s = Math.max(innerWidth / PORTRAIT_VW, areaH / 250);
+    if (innerWidth / s < 168) s = innerWidth / 168;
+    vh = areaH / s;
+    if (vh < VIEW_H) {
+      s = areaH / VIEW_H;
+      vh = VIEW_H;
+    }
+    vh = Math.min(vh, 340);
+    vw = clampN(innerWidth / s, 168, VIEW_W);
   } else {
     s = innerHeight / VIEW_H;
     if (s >= 2 && !document.body.classList.contains('touch')) s = Math.floor(s); // PC は整数倍でドットをそろえる
@@ -66,14 +78,15 @@ function fit() {
     s = Math.min(s, innerWidth / vw);
   }
   vw = Math.round(vw);
-  if (canvas.width !== vw * RES) {
+  vh = Math.round(vh);
+  if (canvas.width !== vw * RES || canvas.height !== vh * RES) {
     canvas.width = vw * RES;
-    canvas.height = VIEW_H * RES;
+    canvas.height = vh * RES;
   }
   g.imageSmoothingEnabled = false;
-  game?.setView(vw);
+  game?.setView(vw, vh);
   wrap.style.width = `${Math.round(vw * s)}px`;
-  wrap.style.height = `${Math.round(VIEW_H * s)}px`;
+  wrap.style.height = `${Math.round(vh * s)}px`;
   document.documentElement.style.setProperty('--px', `${s}px`);
 }
 addEventListener('resize', fit);
@@ -161,6 +174,34 @@ function title() {
     },
   });
 }
+// 一時停止(HUD の ⏸ ボタン、Esc・P キー)
+function pauseMenu() {
+  if (mode !== 'play') return;
+  pause();
+  UI.showPause({
+    muted: isMuted(),
+    onResume: resume,
+    onRestart: restart,
+    onTitle: title,
+    onMute: () => {
+      setMuted(!isMuted());
+      store.set('scsw.muted', isMuted());
+      mode = 'play';
+      pauseMenu();
+    },
+  });
+}
+document.querySelector('#hud-pause').addEventListener('click', (e) => {
+  e.stopPropagation();
+  initAudio();
+  pauseMenu();
+});
+addEventListener('keydown', (e) => {
+  if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+  if (mode === 'play') pauseMenu();
+  else if (mode === 'dialog' && document.querySelector('#overlay .pause')) resume();
+});
+
 function cards(back) {
   UI.showCards(owned, { cardImg, onBack: back });
 }

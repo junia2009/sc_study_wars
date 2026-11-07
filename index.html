@@ -20,28 +20,28 @@
     <div id="stage-wrap">
       <canvas id="screen" width="640" height="360" aria-label="ゲーム画面"></canvas>
       <div id="hud" aria-live="off">
-        <span id="hud-stage">STAGE 1</span>
+        <span id="hud-stage">経理部</span>
         <span class="leak">
-          <span class="label">漏洩ゲージ</span>
+          <span class="label">漏洩</span>
           <span id="hud-leak" class="bar" role="meter" aria-label="漏洩ゲージ"><i></i></span>
           <span id="hud-leak-num">0%</span>
         </span>
         <span id="hud-mfa" class="mfa" hidden title="多要素認証の盾">🛡 MFA</span>
         <span id="hud-score">00000</span>
+        <button id="hud-pause" type="button" aria-label="一時停止"><i></i><i></i></button>
       </div>
       <div id="banner" role="status" aria-live="polite"></div>
       <div id="prompt" hidden></div>
     </div>
 
-    <!-- スマホ用のコントローラー。左: 十字キー(指を滑らせると向きが変わる) / 右: ボタン(いちばん近いボタンが反応) -->
+    <!-- スマホ用のコントローラー。押せるのはボタンの上と、その周りの少しの余白だけ(見た目と押せる範囲を一致させる)。
+         左右のキーの間は、指を滑らせると切り替わる -->
     <div id="pad" aria-hidden="true">
-      <div class="zone dpad" data-zone="dpad">
-        <div class="dpad-face">
-          <span class="arrow left" data-show="left"></span>
-          <span class="arrow right" data-show="right"></span>
-        </div>
+      <div class="cluster dpad" data-zone="dpad">
+        <span class="key left" data-btn="left" data-show="left"><i></i></span>
+        <span class="key right" data-btn="right" data-show="right"><i></i></span>
       </div>
-      <div class="zone btns" data-zone="btns">
+      <div class="cluster btns" data-zone="btns">
         <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>調べる</small></span>
         <span class="pad-btn jump" data-btn="jump" data-show="jump"><b>A</b><small>ジャンプ</small></span>
       </div>

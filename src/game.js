@@ -5,7 +5,7 @@ import { held, take } from './input.js';
 import { sfx } from './audio.js';
 
 export const VIEW_W = 320; // 見える横幅の標準。画面の形に合わせて this.vw が変わる(200〜400)
-export const VIEW_H = 180;
+export const VIEW_H = 180; // 見える高さの標準。縦向きでは床の上の空まで映して高くする(180〜300)
 
 // 手触りの調整はここで
 const PH = {
@@ -37,6 +37,7 @@ export class Game {
     this.S = sprites;
     this.hooks = hooks;
     this.vw = VIEW_W;
+    this.vh = VIEW_H;
     this.reset();
   }
 
@@ -94,7 +95,7 @@ export class Game {
     this.time = 0;
     this.t = 0;
     this.camX = 0;
-    this.camY = this.rows * T - VIEW_H;
+    this.camY = this.rows * T - this.vh; // 床が画面の下にくるように。高い画面では上に空が見える
     this.shieldFlash = 0;
     this.nearDoor = null;
     this.over = false;
@@ -102,8 +103,10 @@ export class Game {
   }
 
   // 見える横幅を変える(カメラがはみ出さないように直す)
-  setView(vw) {
+  setView(vw, vh = VIEW_H) {
     this.vw = vw;
+    this.vh = vh;
+    this.camY = this.rows * T - this.vh;
     this.camX = clamp(this.camX, 0, this.cols * T - this.vw);
   }
 
@@ -471,7 +474,7 @@ export class Game {
     this.shieldFlash = Math.max(0, this.shieldFlash - dt);
 
     // カメラ(進む向きを少し先まで見せる)
-    const target = p.x + p.w / 2 - this.vw / 2 + p.face * Math.min(28, this.vw * 0.09);
+    const target = p.x + p.w / 2 - this.vw / 2 + p.face * Math.min(36, this.vw * 0.18); // 進む向きを先まで見せる
     this.camX += (target - this.camX) * Math.min(1, dt * 5);
     this.camX = clamp(this.camX, 0, this.cols * T - this.vw);
   }
@@ -482,7 +485,7 @@ export class Game {
     const S = this.S;
     const R = RES;
     const W = Math.round(this.vw * R);
-    const H = VIEW_H * R;
+    const H = Math.round(this.vh * R);
     const X = (wx) => Math.round((wx - this.camX) * R);
     const Y = (wy) => Math.round((wy - this.camY) * R);
     const t = now / 1000;
@@ -496,6 +499,32 @@ export class Game {
       g.fillStyle = c;
       g.fillRect(0, Math.floor((i * H) / bands.length), W, Math.ceil(H / bands.length) + 1);
     });
+    // いちばん奥: 窓の明かりが灯るビル群(縦長の画面で、空が寂しくならないように)
+    const o0 = Math.floor(camD * 0.06);
+    for (let x = -(o0 % 176) - 176; x < W; x += 176) {
+      const seed = Math.floor((x + o0) / 176) + 20;
+      const bw = 96 + ((seed * 29) % 48);
+      const bh = 300 + ((seed * 71) % 220);
+      const bx = x + ((seed * 17) % 60);
+      const by = base - bh;
+      g.fillStyle = '#0a1029';
+      g.fillRect(bx, by, bw, bh);
+      g.fillStyle = '#0c1431';
+      g.fillRect(bx + bw - 10, by, 10, bh);
+      for (let wy = by + 14; wy < base - 20; wy += 18) {
+        for (let wx = bx + 10; wx < bx + bw - 18; wx += 14) {
+          const lit = ((wx * 7 + wy * 13 + seed * 31) >> 3) % 9 === 0;
+          g.fillStyle = lit ? '#22366c' : '#0d1534';
+          g.fillRect(wx, wy, 6, 8);
+        }
+      }
+      // 屋上の航空障害灯
+      if (Math.floor(t * 1.2 + seed) % 2 === 0) {
+        g.fillStyle = '#ff3b5c';
+        g.fillRect(bx + (bw >> 1) - 2, by - 4, 4, 4);
+      }
+    }
+
     // 奥: サーバーラック(ランプが点滅)
     const o1 = Math.floor(camD * 0.15);
     for (let x = -(o1 % 132) - 132; x < W; x += 132) {
