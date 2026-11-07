@@ -4,7 +4,7 @@ import { TILE as T, RES } from './sprites.js';
 import { held, take } from './input.js';
 import { sfx } from './audio.js';
 
-export const VIEW_W = 320;
+export const VIEW_W = 320; // 見える横幅の標準。画面の形に合わせて this.vw が変わる(200〜400)
 export const VIEW_H = 180;
 
 // 手触りの調整はここで
@@ -36,6 +36,7 @@ export class Game {
     this.stage = stage;
     this.S = sprites;
     this.hooks = hooks;
+    this.vw = VIEW_W;
     this.reset();
   }
 
@@ -98,6 +99,12 @@ export class Game {
     this.nearDoor = null;
     this.over = false;
     this.hooks.hud?.(this);
+  }
+
+  // 見える横幅を変える(カメラがはみ出さないように直す)
+  setView(vw) {
+    this.vw = vw;
+    this.camX = clamp(this.camX, 0, this.cols * T - this.vw);
   }
 
   enemy(kind, x, y) {
@@ -330,7 +337,7 @@ export class Game {
     // 敵
     for (const e of this.enemies) {
       if (e.dead) continue;
-      if (!e.awake && e.x < this.camX + VIEW_W + 24) e.awake = true;
+      if (!e.awake && e.x < this.camX + this.vw + 24) e.awake = true;
       if (!e.awake) continue;
       e.flash = Math.max(0, e.flash - dt);
       e.vx = e.dir * e.speed;
@@ -464,9 +471,9 @@ export class Game {
     this.shieldFlash = Math.max(0, this.shieldFlash - dt);
 
     // カメラ(進む向きを少し先まで見せる)
-    const target = p.x + p.w / 2 - VIEW_W / 2 + p.face * 28;
+    const target = p.x + p.w / 2 - this.vw / 2 + p.face * Math.min(28, this.vw * 0.09);
     this.camX += (target - this.camX) * Math.min(1, dt * 5);
-    this.camX = clamp(this.camX, 0, this.cols * T - VIEW_W);
+    this.camX = clamp(this.camX, 0, this.cols * T - this.vw);
   }
 
   // ---- 描画 ----
@@ -474,7 +481,7 @@ export class Game {
   render(g, now) {
     const S = this.S;
     const R = RES;
-    const W = VIEW_W * R;
+    const W = Math.round(this.vw * R);
     const H = VIEW_H * R;
     const X = (wx) => Math.round((wx - this.camX) * R);
     const Y = (wy) => Math.round((wy - this.camY) * R);
@@ -548,7 +555,7 @@ export class Game {
 
     // ---- マス ----
     const c0 = Math.max(0, Math.floor(this.camX / T));
-    const c1 = Math.min(this.cols - 1, c0 + Math.ceil(VIEW_W / T) + 1);
+    const c1 = Math.min(this.cols - 1, c0 + Math.ceil(this.vw / T) + 1);
     const ph = t % 3;
     const qf = ph < 0.5 ? 1 + Math.floor(ph / 0.125) : 0;
     for (let y = 0; y < this.rows; y++) {

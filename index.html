@@ -33,14 +33,17 @@
       <div id="prompt" hidden></div>
     </div>
 
+    <!-- スマホ用のコントローラー。左: 十字キー(指を滑らせると向きが変わる) / 右: ボタン(いちばん近いボタンが反応) -->
     <div id="pad" aria-hidden="true">
-      <div class="pad-left">
-        <button data-pad="left" class="pad-btn">◀</button>
-        <button data-pad="right" class="pad-btn">▶</button>
+      <div class="zone dpad" data-zone="dpad">
+        <div class="dpad-face">
+          <span class="arrow left" data-show="left"></span>
+          <span class="arrow right" data-show="right"></span>
+        </div>
       </div>
-      <div class="pad-right">
-        <button data-pad="act" class="pad-btn small">調べる</button>
-        <button data-pad="jump" class="pad-btn big">ジャンプ</button>
+      <div class="zone btns" data-zone="btns">
+        <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>調べる</small></span>
+        <span class="pad-btn jump" data-btn="jump" data-show="jump"><b>A</b><small>ジャンプ</small></span>
       </div>
     </div>
   </main>

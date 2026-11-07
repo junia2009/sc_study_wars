@@ -77,7 +77,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
         <button data-act="mute" class="ghost">${muted ? '音: オフ' : '音: オン'}</button>
       </div>
       <p class="tip"><span>Tips</span>${esc(tip)}</p>
-      <p class="keys">PC: ← → 移動 / Z・スペース ジャンプ / X・↑ 調べる<br>スマホ: 横向きがおすすめ。画面のボタンで操作</p>
+      <p class="keys">PC: ← → 移動 / Z・スペース ジャンプ / X・↑ 調べる<br>スマホ: 縦でも横でも。十字キーは指を滑らせて向きを変えられる</p>
       <p class="fine">登場する会社・人物・ドメインはすべて架空です。</p>
     </div>`,
     'is-title',
@@ -109,8 +109,10 @@ export function showScene(id, done) {
   let finished = false;
   show(
     `<div class="panel scene" role="dialog" aria-label="判断シーン">
-      <div class="scene-head"><span class="tag">判断シーン</span><span class="count">あと <b>${left}</b> 秒</span></div>
-      <div class="timer"><i></i></div>
+      <div class="scene-top">
+        <div class="scene-head"><span class="tag">判断シーン</span><span class="count">あと <b>${left}</b> 秒</span></div>
+        <div class="timer"><i></i></div>
+      </div>
       <div class="scene-body">
         <div class="scene-left">${mockHTML(sc.mock)}</div>
         <div class="scene-right">
@@ -122,7 +124,7 @@ export function showScene(id, done) {
         </div>
       </div>
     </div>`,
-    'is-dialog',
+    'is-dialog is-scene',
   );
   const bar = overlay.querySelector('.timer i');
   const count = overlay.querySelector('.count b');

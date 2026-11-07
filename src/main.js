@@ -1,6 +1,6 @@
 // 起動と、画面の切り替え(タイトル → プレイ → 判断シーン → クリア/報告書)
 import { buildSprites, spriteURL } from './sprites.js';
-import { initInput, pollPad, setGameInput, clearPressed } from './input.js';
+import { initInput, pollPad, setGameInput, clearPressed, held } from './input.js';
 import { initAudio, setMuted, isMuted } from './audio.js';
 import { Game, VIEW_W, VIEW_H } from './game.js';
 import { RES } from './sprites.js';
@@ -15,7 +15,6 @@ const canvas = document.querySelector('#screen');
 const g = canvas.getContext('2d');
 canvas.width = VIEW_W * RES;
 canvas.height = VIEW_H * RES;
-g.imageSmoothingEnabled = false;
 
 const S = buildSprites();
 const CARD_SPRITE = { pass: S.pass[0].r, shield: S.shield, phish: S.phish[0].r, door: S.door };
@@ -44,23 +43,47 @@ let owned = store.get('scsw.cards', []);
 setMuted(store.get('scsw.muted', false));
 
 // ---- 画面の大きさ ----
+// 画面の形に合わせて、拡大率と「見える横幅」を決める。
+//   横向き・PC: 高さいっぱいに映し、横幅は画面の形に合わせて 240〜400 の間で広げる(黒い帯を出さない)
+//   縦向き:     下にコントローラーの場所を空け、見える横幅を絞ってキャラを大きく映す(200〜320)
 function fit() {
   const wrap = document.querySelector('#stage-wrap');
   const portrait = innerHeight > innerWidth;
-  const availH = portrait ? innerHeight * 0.55 : innerHeight;
-  let s = Math.min(innerWidth / VIEW_W, availH / VIEW_H);
-  if (s >= 2) s = Math.floor(s); // 2倍以上なら整数倍にして、ドットの大きさをそろえる
-  wrap.style.width = `${Math.floor(VIEW_W * s)}px`;
-  wrap.style.height = `${Math.floor(VIEW_H * s)}px`;
-  document.documentElement.style.setProperty('--px', `${s}px`);
   document.body.classList.toggle('portrait', portrait);
+  const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  let s;
+  let vw;
+  if (portrait) {
+    const top = parseFloat(getComputedStyle(document.querySelector('#app')).paddingTop) || 0;
+    const padH = Math.max(260, innerHeight * 0.42);
+    s = (innerHeight - top - padH) / VIEW_H;
+    vw = clampN(innerWidth / s, 200, VIEW_W);
+    s = Math.min(s, innerWidth / vw);
+  } else {
+    s = innerHeight / VIEW_H;
+    if (s >= 2 && !document.body.classList.contains('touch')) s = Math.floor(s); // PC は整数倍でドットをそろえる
+    vw = clampN(innerWidth / s, 240, 400);
+    s = Math.min(s, innerWidth / vw);
+  }
+  vw = Math.round(vw);
+  if (canvas.width !== vw * RES) {
+    canvas.width = vw * RES;
+    canvas.height = VIEW_H * RES;
+  }
+  g.imageSmoothingEnabled = false;
+  game?.setView(vw);
+  wrap.style.width = `${Math.round(vw * s)}px`;
+  wrap.style.height = `${Math.round(VIEW_H * s)}px`;
+  document.documentElement.style.setProperty('--px', `${s}px`);
 }
 addEventListener('resize', fit);
-fit();
+let game = null;
+addEventListener('orientationchange', () => setTimeout(fit, 200));
+visualViewport?.addEventListener('resize', fit);
 
 // ---- ゲーム ----
 let mode = 'title'; // title | play | dialog | end
-const game = new Game(STAGE1, S, {
+game = new Game(STAGE1, S, {
   hud: (gm) => UI.updateHud(gm),
   banner: (text, tone) => UI.banner(text, tone),
   prompt: (text) => UI.prompt(text),
@@ -142,9 +165,12 @@ function cards(back) {
   UI.showCards(owned, { cardImg, onBack: back });
 }
 
+fit();
+addEventListener('touchstart', () => setTimeout(fit, 0), { once: true, passive: true });
 initInput(() => initAudio());
 title();
 window.scsw = game; // 動作確認用(ブラウザの開発ツールから状態を見られる)
+window.__held = held;
 
 // ---- ループ(1/60 秒きざみで進めて、端末の速さに左右されないようにする) ----
 const STEP = 1 / 60;

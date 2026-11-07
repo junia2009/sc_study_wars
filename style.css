@@ -60,7 +60,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 6);
-  padding: calc(var(--px) * 3) calc(var(--px) * 5);
+  padding: calc(var(--px) * 3) max(calc(var(--px) * 5), env(safe-area-inset-right)) calc(var(--px) * 3) max(calc(var(--px) * 5), env(safe-area-inset-left));
   font-size: clamp(11px, calc(var(--px) * 6), 22px);
   text-shadow: 1px 1px 0 #000;
   pointer-events: none;
@@ -110,6 +110,9 @@ html, body {
   transition: opacity 0.2s, transform 0.2s;
 }
 #banner.show { opacity: 1; transform: translate(-50%, 0); }
+#banner { z-index: 5; }
+/* 縦向きは、ゲーム画面にかぶらないよう、画面のすぐ下に出す */
+body.portrait #banner { top: calc(100% + 12px); width: max-content; max-width: calc(100vw - 32px); }
 #banner.good { border-color: var(--green); }
 #banner.bad { border-color: var(--red); color: #ffd0dc; }
 #banner.info { border-color: var(--blue); }
@@ -128,39 +131,157 @@ html, body {
   animation: blink 1.2s steps(2) infinite;
 }
 
-/* ---------- 画面のボタン(スマホ) ---------- */
+/* ---------- スマホのコントローラー ---------- */
+/* 見た目(丸や十字)より、指で押せる範囲(.zone)をずっと広く取っている */
 #pad { display: none; }
-@media (pointer: coarse) {
-  #pad {
-    display: flex;
-    position: fixed;
-    inset: auto 0 0 0;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding: 0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    pointer-events: none;
-  }
-}
-.pad-left, .pad-right { display: flex; gap: 12px; align-items: flex-end; pointer-events: auto; }
-.pad-btn {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  border: 2px solid #fff4;
-  background: #ffffff1f;
-  color: #fffc;
-  font: inherit;
-  font-size: 22px;
-  white-space: nowrap;
-  padding: 0;
-  text-align: center;
-  touch-action: none;
-}
-.pad-btn.small { width: 60px; height: 60px; font-size: 12px; margin-bottom: 30px; }
-.pad-btn.big { width: 82px; height: 82px; font-size: 13px; }
-.pad-btn.on { background: #29adff66; border-color: var(--blue); }
+@media (pointer: coarse) { #pad { display: block; } }
+body.touch #pad { display: block; }
 
-body.portrait #app { justify-content: flex-start; padding-top: max(24px, env(safe-area-inset-top)); }
+#pad {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.zone {
+  position: absolute;
+  bottom: 0;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+/* 横向き: 画面の左下・右下の広い範囲が、そのまま押せる場所 */
+.dpad {
+  left: 0;
+  width: min(42vw, 320px);
+  height: min(62vh, 260px);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 0 max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+.btns {
+  right: 0;
+  width: min(42vw, 320px);
+  height: min(62vh, 260px);
+}
+
+.dpad-face {
+  display: flex;
+  width: 156px;
+  height: 76px;
+  border-radius: 38px;
+  background: #0b112ccc;
+  border: 2px solid #ffffff33;
+  box-shadow: inset 0 2px 0 #ffffff14, 0 4px 0 #0008;
+  overflow: hidden;
+}
+.arrow { position: relative; flex: 1; transition: background 0.06s; }
+.arrow + .arrow { border-left: 2px solid #ffffff22; }
+.arrow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 13px solid transparent;
+  transform: translate(-50%, -50%);
+}
+.arrow.left::before { border-right: 18px solid #ffffffcc; border-left-width: 0; margin-left: -4px; }
+.arrow.right::before { border-left: 18px solid #ffffffcc; border-right-width: 0; margin-left: 4px; }
+.arrow.on { background: #29adff66; }
+.arrow.on::before { filter: drop-shadow(0 0 4px #7fe3ff); }
+
+.pad-btn {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 50%;
+  color: #ffffffdd;
+  background: #0b112ccc;
+  border: 2px solid #ffffff33;
+  box-shadow: inset 0 2px 0 #ffffff14, 0 4px 0 #0008;
+  transition: transform 0.06s, background 0.06s;
+}
+.pad-btn b { font-size: 24px; font-weight: normal; line-height: 1; }
+.pad-btn small { font-size: 11px; line-height: 1; opacity: 0.85; }
+.pad-btn.jump {
+  width: 86px;
+  height: 86px;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  border-color: #ffd23f88;
+}
+.pad-btn.act {
+  width: 66px;
+  height: 66px;
+  right: calc(max(18px, env(safe-area-inset-right)) + 98px);
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 44px);
+}
+.pad-btn.on { background: #29adff66; border-color: var(--blue); transform: translateY(3px); box-shadow: inset 0 2px 0 #ffffff14, 0 1px 0 #0008; }
+.pad-btn.jump.on { background: #ffd23f55; border-color: var(--yellow); }
+
+/* 横向きはゲーム画面に重なるので、後ろの敵が透けて見えるようにする */
+body:not(.portrait) .dpad-face,
+body:not(.portrait) .pad-btn { background: #0b112c59; border-color: #ffffff40; box-shadow: none; }
+body:not(.portrait) .pad-btn.jump { border-color: #ffd23f80; }
+body:not(.portrait) .arrow.left::before { border-right-color: #ffffffb3; }
+body:not(.portrait) .arrow.right::before { border-left-color: #ffffffb3; }
+
+/* 縦向き: 上がゲーム画面、下の半分がまるごとコントローラー */
+body.portrait #app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  align-items: start;
+  padding-top: env(safe-area-inset-top);
+}
+body.portrait #stage-wrap { box-shadow: 0 1px 0 #1a2350; }
+body.portrait #pad {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #121a44 0%, #070a1c 70%);
+  border-top: 2px solid #1a2350;
+}
+body.portrait .zone { top: 0; bottom: 0; height: auto; width: 50%; }
+body.portrait .dpad {
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 env(safe-area-inset-bottom);
+}
+body.portrait .dpad-face { width: min(40vw, 176px); height: min(22vw, 96px); border-radius: 48px; }
+body.portrait .pad-btn.jump {
+  width: min(25vw, 100px);
+  height: min(25vw, 100px);
+  right: 7vw;
+  bottom: auto;
+  top: calc(50% - min(12.5vw, 50px) + 4vw);
+}
+body.portrait .pad-btn.act {
+  width: min(19vw, 76px);
+  height: min(19vw, 76px);
+  right: calc(7vw + min(25vw, 100px) + 3vw);
+  bottom: auto;
+  top: calc(50% - min(9.5vw, 38px) - 7vw);
+}
+body.portrait #pad { z-index: 1; }
+body.portrait #pad::after {
+  content: '指を滑らせると向きが変わる';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 11px;
+  color: #ffffff4d;
+  pointer-events: none;
+}
 
 /* ---------- 重ねる画面 ---------- */
 #overlay {
@@ -360,8 +481,36 @@ button:disabled { opacity: 0.6; cursor: default; }
   .card-list { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 }
 
+/* 縦向きの判断シーン: 残り時間は上、選択肢は下に貼り付けて、メールだけをスクロールさせる */
+@media (orientation: portrait) {
+  #overlay.is-scene { padding-top: 0; padding-bottom: 0; }
+  .scene { padding-top: 0; padding-bottom: 0; }
+  .scene-top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -22px;
+    padding: max(12px, env(safe-area-inset-top)) 22px 10px;
+    background: var(--panel);
+    box-shadow: 0 8px 12px var(--panel);
+  }
+  .scene .timer { margin: 8px 0 0; }
+  .scene .choices {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: 10px;
+    padding: 10px 0 max(14px, env(safe-area-inset-bottom));
+    background: var(--panel);
+    box-shadow: 0 -10px 14px var(--panel);
+  }
+  .scene .mock { font-size: 13px; line-height: 1.55; }
+  .scene .choices button { padding: 0.5em 0.8em; }
+}
+
 @media (max-width: 420px) {
   .panel { padding: 16px; }
+  .scene-top { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   .choices.two { grid-template-columns: 1fr; }
 }
 

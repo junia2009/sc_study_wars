@@ -36,6 +36,8 @@ export function setGameInput(on) {
   if (!on) {
     for (const s of Object.values(sources)) for (const k in s) s[k] = false;
     for (const k in held) held[k] = false;
+    fingers?.clear();
+    document.querySelectorAll('#pad .on').forEach((el) => el.classList.remove('on'));
     clearPressed();
   }
 }
@@ -60,32 +62,92 @@ export function initInput(onAnyInput) {
     for (const k in held) refresh(k);
   });
 
-  // 画面のボタン(複数の指で同時に押せる)
-  const active = new Map(); // pointerId → name
-  for (const btn of document.querySelectorAll('[data-pad]')) {
-    const name = btn.dataset.pad;
-    const down = (e) => {
+  initTouch(onAnyInput);
+}
+
+// ---- スマホのコントローラー ----
+// 指ごとに「今どこにあるか」から、押しているボタンを毎回決め直す。
+//   十字キー: 枠の真ん中より左なら左、右なら右(真ん中付近は直前の向きを保つ)
+//   ボタン:   いちばん近いボタン(すき間を押しても、近いほうが反応する)
+// 指は枠の外へ出ても追いかける(setPointerCapture)ので、滑らせても途切れない。
+const fingers = new Map(); // pointerId → { zone, name }
+
+function pick(zone, x, y, prev) {
+  if (zone.dataset.zone === 'dpad') {
+    // 押せる範囲は広いが、左右の境目は「見えている十字キーの真ん中」にする
+    const r = (zone.querySelector('.dpad-face') || zone).getBoundingClientRect();
+    const dx = x - (r.left + r.width / 2);
+    if (Math.abs(dx) < r.width * 0.08 && prev) return prev;
+    return dx < 0 ? 'left' : 'right';
+  }
+  let best = null;
+  let bestD = Infinity;
+  for (const b of zone.querySelectorAll('[data-btn]')) {
+    const r = b.getBoundingClientRect();
+    const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+    if (d < bestD) {
+      bestD = d;
+      best = b.dataset.btn;
+    }
+  }
+  return best;
+}
+
+function syncTouch() {
+  const now = {};
+  for (const f of fingers.values()) if (f.name) now[f.name] = true;
+  for (const k of ['left', 'right', 'jump', 'act']) {
+    const was = !!sources.touch[k];
+    sources.touch[k] = !!now[k];
+    refresh(k);
+    if (!was && now[k] && (k === 'jump' || k === 'act')) navigator.vibrate?.(8);
+  }
+  for (const el of document.querySelectorAll('#pad [data-show]')) el.classList.toggle('on', !!now[el.dataset.show]);
+}
+
+function initTouch(onAnyInput) {
+  for (const zone of document.querySelectorAll('#pad [data-zone]')) {
+    zone.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      document.body.classList.add('touch');
       onAnyInput?.();
       if (!enabled) return;
-      active.set(e.pointerId, name);
-      btn.classList.add('on');
-      sources.touch[name] = true;
-      refresh(name);
-    };
+      try {
+        zone.setPointerCapture(e.pointerId);
+      } catch {
+        /* 取れなくても動く */
+      }
+      fingers.set(e.pointerId, { zone, name: pick(zone, e.clientX, e.clientY, null) });
+      syncTouch();
+    });
+    zone.addEventListener('pointermove', (e) => {
+      const f = fingers.get(e.pointerId);
+      if (!f) return;
+      const name = pick(f.zone, e.clientX, e.clientY, f.name);
+      if (name !== f.name) {
+        f.name = name;
+        syncTouch();
+      }
+    });
     const up = (e) => {
-      if (!active.has(e.pointerId)) return;
-      active.delete(e.pointerId);
-      btn.classList.remove('on');
-      sources.touch[name] = [...active.values()].includes(name);
-      refresh(name);
+      if (!fingers.delete(e.pointerId)) return;
+      syncTouch();
     };
-    btn.addEventListener('pointerdown', down);
-    btn.addEventListener('pointerup', up);
-    btn.addEventListener('pointercancel', up);
-    btn.addEventListener('pointerleave', up);
-    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    zone.addEventListener('pointerup', up);
+    zone.addEventListener('pointercancel', up);
+    zone.addEventListener('lostpointercapture', up);
+    zone.addEventListener('contextmenu', (e) => e.preventDefault());
   }
+
+  // プレイ中に、ダブルタップやピンチで画面が拡大・スクロールされないようにする
+  // (拡大されると、見た目とタップの位置がずれる)
+  const app = document.querySelector('#app');
+  app.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  app.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  for (const ev of ['gesturestart', 'gesturechange', 'dblclick']) document.addEventListener(ev, (e) => e.preventDefault());
+  addEventListener('touchstart', () => document.body.classList.add('touch'), { once: true, passive: true });
 }
 
 // ゲームパッド(毎フレーム読む)
