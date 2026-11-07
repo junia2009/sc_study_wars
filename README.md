@@ -53,7 +53,8 @@ data/stage1.js      ステージの地図(文字の地図)と、ヒント・扉�
 data/scenes.js      判断シーンの中身
 data/cards.js       解説カード、障害報告書の原因と再発防止策、タイトルのひとこと
 scripts/check-art.mjs  ドット絵と地図の行の長さがそろっているかを確かめる
-sw.js・manifest.webmanifest・icon.svg  PWA(オフラインでも遊べる)
+sw.js・manifest.webmanifest  PWA(オフラインでも遊べる)
+icons/              アプリのアイコン(scripts/make-icons.cjs で書き出す)
 ```
 
 手元で動かす: `python3 -m http.server` などでこのフォルダを配信して、ブラウザで開く(ES モジュールを使うので、ファイルを直接開くだけでは動かない)。
@@ -62,6 +63,11 @@ sw.js・manifest.webmanifest・icon.svg  PWA(オフラインでも遊べる)
 
 `src/art.js` に文字で描く。`.` が透明、`0`〜`9` と `a`〜`f` が色の番号。
 描いたら `node scripts/check-art.mjs` で形を確かめる。
+
+### アイコンを描き直すとき
+
+`scripts/make-icons.cjs` の `draw()` に 32×32 ドットで描いてあり、`node scripts/make-icons.cjs` で
+`icons/` に各サイズの PNG を書き出す(拡大は整数倍・ぼかしなし)。Playwright が入っている環境で動かす。
 
 ### 手口や判断シーンを足すとき
 

@@ -1,12 +1,17 @@
 // オフラインでも遊べるように、ゲームのファイルを端末に保存する。
 // ファイルを変えたら VERSION を上げること(古い保存が消えて、新しいものに入れ替わる)。
-const VERSION = 'scsw-v0.1.0';
+const VERSION = 'scsw-v0.1.1';
 const FILES = [
   './',
   './index.html',
   './style.css',
   './manifest.webmanifest',
-  './icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
+  './icons/favicon-64.png',
   './src/main.js',
   './src/game.js',
   './src/ui.js',
