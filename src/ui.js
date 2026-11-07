@@ -10,22 +10,49 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const overlay = $('#overlay');
+let bannerTimer = 0;
+let shownAt = 0;
+// 画面を出した直後(0.25秒)のクリックは受け付けない。前の画面でのタップが、新しい画面のボタンに当たるのを防ぐ
+overlay.addEventListener(
+  'click',
+  (e) => {
+    if (performance.now() - shownAt < 250) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  },
+  true,
+);
 
 // main.js から受け取るもの: 顔・手がかりの画像、主人公の名前
-let ctx = { face: () => '', clueImg: () => '', name: () => 'ミナト' };
+let ctx = { face: () => '', clueImg: () => '', name: () => 'ミナト', touch: () => false, seen: () => true, markSeen: () => {} };
 export function initUI(c) {
   ctx = { ...ctx, ...c };
 }
 // {name} を主人公の名前に
-const fill = (t) => String(t).replace(/\{name\}/g, ctx.name());
+// 操作の書き方は、タッチ端末かどうかで変える
+const KEYWORDS = {
+  move: () => (ctx.touch() ? '左下の ◀ ▶ キー' : '← → キー'),
+  jump: () => (ctx.touch() ? '右下の A ボタン' : 'Z キーかスペース'),
+  note: () => (ctx.touch() ? 'B ボタン' : 'X キー'),
+  pause: () => (ctx.touch() ? '右上の ⏸' : 'Esc キー'),
+};
+const fill = (t) =>
+  String(t)
+    .replace(/\{name\}/g, ctx.name())
+    .replace(/\{(move|jump|note|pause)\}/g, (_, k) => KEYWORDS[k]());
 // {{ }} で囲んだ決め手: on なら光らせる、off なら印だけ外す
 const marks = (t, on) =>
   esc(fill(t)).replace(/\{\{(.+?)\}\}/g, (_, w) => (on ? `<mark>${w}</mark>` : w));
 
 function show(html, cls = '') {
+  // 重ねる画面を出すときは、プレイ中のひとことを消す
+  clearTimeout(bannerTimer);
+  $('#banner').className = '';
   overlay.className = cls;
   overlay.innerHTML = html;
   overlay.hidden = false;
+  shownAt = performance.now();
   overlay.scrollTop = 0;
   const first = overlay.querySelector('[data-autofocus]') || overlay.querySelector('button');
   first?.focus({ preventScroll: true });
@@ -78,7 +105,6 @@ export function updateHud(game) {
     .join('');
 }
 
-let bannerTimer = 0;
 export function banner(text, tone = 'info') {
   const el = $('#banner');
   el.textContent = fill(text);
@@ -103,7 +129,7 @@ export function prompt(text) {
 }
 
 // ---------------- タイトル ----------------
-export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute }) {
+export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute, onMovie }) {
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   setKeys(null);
   show(
@@ -115,6 +141,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
       <div class="actions">
         <button class="primary" data-act="start" data-autofocus>月曜からはじめる</button>
         <button data-act="cards">解説カード(${owned}/${CARDS.length})</button>
+        ${onMovie ? '<button data-act="movie">オープニングを見る</button>' : ''}
         <button data-act="mute" class="ghost">${muted ? '音: オフ' : '音: オン'}</button>
       </div>
       <p class="tip"><span>Tips</span>${esc(tip)}</p>
@@ -126,6 +153,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
   on('[data-act=start]', onStart);
   on('[data-act=cards]', onCards);
   on('[data-act=mute]', onMute);
+  if (onMovie) on('[data-act=movie]', onMovie);
 }
 
 // ---------------- 名前を決める ----------------
@@ -181,6 +209,7 @@ export function talk(lines, done) {
   const finish = once(() => {
     clearInterval(typing);
     setKeys(null);
+    document.querySelectorAll('.spot').forEach((el) => el.classList.remove('spot'));
     done();
   });
   show(
@@ -205,6 +234,8 @@ export function talk(lines, done) {
     overlay.querySelector('.talk-face').innerHTML = faceImg(l.who, 72);
     overlay.querySelector('.talk-name').textContent = p.name;
     full = fill(l.text);
+    document.querySelectorAll('.spot').forEach((el) => el.classList.remove('spot'));
+    if (l.point) document.querySelectorAll(l.point).forEach((el) => el.classList.add('spot'));
     let n = 0;
     clearInterval(typing);
     text.textContent = '';
@@ -243,6 +274,88 @@ export function talk(lines, done) {
   render();
 }
 
+// ---------------- オープニングムービーの字幕 ----------------
+// 画面のどこをタップしても次の字幕へ。スキップもできる
+export function startMovieUI({ onNext, onSkip }) {
+  show(
+    `<div class="movie-ui">
+      <button class="movie-skip ghost" data-act="skip">スキップ ⏭</button>
+      <div class="movie-cap" aria-live="polite"><p class="movie-name"></p><p class="movie-text"></p><span class="movie-dots"></span></div>
+    </div>`,
+    'is-movie',
+  );
+  overlay.addEventListener('click', (e) => {
+    if (e.target.closest('[data-act=skip]')) return;
+    onNext();
+  });
+  on('[data-act=skip]', onSkip);
+  setKeys((e) => {
+    if (['Enter', 'Space', 'KeyZ', 'KeyX'].includes(e.code)) {
+      e.preventDefault();
+      onNext();
+    }
+    if (e.code === 'Escape') onSkip();
+  });
+}
+
+export function setMovieCaption(cap, shot, total) {
+  const box = overlay.querySelector('.movie-cap');
+  if (!box) return;
+  const p = cap.who ? PEOPLE[cap.who] : null;
+  box.querySelector('.movie-name').textContent = p ? p.name : '';
+  box.classList.toggle('speak', !!p);
+  const text = box.querySelector('.movie-text');
+  text.textContent = fill(cap.text);
+  text.classList.remove('in');
+  void text.offsetWidth;
+  text.classList.add('in');
+  box.querySelector('.movie-dots').textContent = Array.from({ length: total }, (_, i) => (i === shot ? '●' : '・')).join('');
+}
+
+// ---------------- 初めて見たときの説明(画面の一部を光らせて、順番に説明) ----------------
+function coach(key, steps, done) {
+  if (ctx.seen(key)) return done();
+  ctx.markSeen(key);
+  let i = 0;
+  const el = document.createElement('div');
+  el.id = 'coach';
+  el.setAttribute('role', 'dialog');
+  document.body.appendChild(el);
+  const clear = () => document.querySelectorAll('.spot').forEach((x) => x.classList.remove('spot'));
+  const render = () => {
+    clear();
+    const st = steps[i];
+    const target = st.sel ? overlay.querySelector(st.sel) || document.querySelector(st.sel) : null;
+    if (target) {
+      target.classList.add('spot');
+      target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    el.innerHTML = `${faceImg('guard', 40)}<div><p class="coach-who">ガードの解説 ${i + 1}/${steps.length}</p><p>${esc(fill(st.text))}</p></div><button class="primary" data-coach="next">${i + 1 < steps.length ? '次へ' : 'わかった'}</button>`;
+    el.querySelector('[data-coach=next]').focus({ preventScroll: true });
+  };
+  const keys = (e) => {
+    if (['Enter', 'Space'].includes(e.code)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      step();
+    }
+  };
+  const step = () => {
+    i++;
+    if (i >= steps.length) {
+      clear();
+      el.remove();
+      removeEventListener('keydown', keys, true);
+      done();
+    } else render();
+  };
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-coach=next]')) step();
+  });
+  addEventListener('keydown', keys, true);
+  render();
+}
+
 // ---------------- 手帳 ----------------
 function clueHTML(kind, has) {
   const c = CLUES[kind];
@@ -255,18 +368,51 @@ function clueHTML(kind, has) {
   </div>`;
 }
 
-export function showNotebook(clues, onClose) {
+export function basicsHTML() {
+  return `<div class="basics">
+    <h3>3つの基本動作</h3>
+    <ol>${Object.values(RULES).map((r) => `<li>${esc(r.replace(/^[①②③] /, ''))}</li>`).join('')}</ol>
+    <h3>2本のゲージ</h3>
+    <ul>
+      <li><b class="c-leak">漏洩リスク</b>: 詐欺に引っかかる・敵にぶつかる・穴に落ちるとたまる。満タンで<b>障害報告書</b>(ゲームオーバー)</li>
+      <li><b class="c-delay">業務の遅れ</b>: 本物まで疑う・自分で確かめられることを人に任せるとたまる。満タンで<b>始末書</b>(ゲームオーバー)。業務データ(結晶)を集めると減る</li>
+    </ul>
+    <h3>判断の結果(4段階)</h3>
+    <ul>
+      <li>◎ 最善 ── 正しい確かめ方で解決</li>
+      <li>○ 安全だが遅い ── 守れたが、業務の遅れがたまる</li>
+      <li>△ 惜しい / たまたま無事 ── 確かめたつもり、または運が良かっただけ</li>
+      <li>× 引っかかった ── 漏洩リスクが大きくたまる。すぐ報告すれば半分で済む</li>
+    </ul>
+    <h3>夕方の評価</h3>
+    <p>100点から「漏洩リスクの最大」と「業務の遅れの最大×0.7」を引き、最善の判断1つにつき2点足す。90点以上で全部が最善なら S。</p>
+    <h3>操作</h3>
+    <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
+  </div>`;
+}
+
+export function showNotebook(clues, onClose, tab = 'clues') {
   show(
     `<div class="panel notebook" role="dialog" aria-label="手帳">
       <h2>📒 手帳</h2>
-      <p class="lead">集めた手がかり。判断シーンで、届いたメールと見比べられる。</p>
-      ${Object.keys(CLUES).map((k) => clueHTML(k, clues[k])).join('')}
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="clues" class="${tab === 'clues' ? 'on' : ''}">手がかり</button>
+        <button role="tab" data-tab="basics" class="${tab === 'basics' ? 'on' : ''}">きほん</button>
+      </div>
+      <div class="tab-body">${
+        tab === 'clues'
+          ? `<p class="lead">集めた手がかり(本物の情報)。判断シーンで、届いたメールと見比べられる。</p>${Object.keys(CLUES)
+              .map((k) => clueHTML(k, clues[k]))
+              .join('')}`
+          : basicsHTML()
+      }</div>
       <div class="actions"><button class="primary" data-act="close" data-autofocus>とじる</button></div>
     </div>`,
     'is-dialog',
   );
   const close = once(onClose);
   on('[data-act=close]', close);
+  on('[data-tab]', (e) => showNotebook(clues, onClose, e.currentTarget.dataset.tab));
   setKeys((e) => {
     if (['Escape', 'KeyX'].includes(e.code)) close();
   });
@@ -340,7 +486,18 @@ export function showScene(id, { clues, clock }, done) {
     'is-dialog is-scene',
   );
 
+  // 初めての判断シーンでは、画面の見方を説明してから始める(制限時間はそのあと動き出す)
+  const coachSteps = [
+    { sel: '.asker', text: sc.from === 'sato' ? '佐藤さんから相談が届きました。これが「判断シーン」です' : '自分あてのメールが届きました。これが「判断シーン」です' },
+    { sel: '.mock', text: '届いたメールです。差出人・返信先・本文を、よく見ましょう' },
+    { sel: '[data-act=notebook]', text: '「手帳と見比べる」で、集めた手がかり(本物の情報)と見比べられます。メールと違うところがあれば、怪しいサインです' },
+    { sel: '.choices', text: 'どう対応するかを、4つから選びます。答えは「3つの基本動作」で考えると解けます(手帳の「きほん」でいつでも見返せます)' },
+  ];
+  const timedSteps = [{ sel: '.timer', text: '「至急」「今日中」と急かしてくるメールには、制限時間があります。急かすのは、考える時間を奪う手口です。時間切れになっても、保留扱いで先へ進めます' }];
+  coach('scene', coachSteps, () => (sc.time ? coach('timed', timedSteps, startTimer) : startTimer()));
+
   // 制限時間(急かしてくるメールだけ)
+  function startTimer() {
   if (sc.time) {
     const bar = overlay.querySelector('.timer i');
     const count = overlay.querySelector('.count b');
@@ -360,6 +517,7 @@ export function showScene(id, { clues, clock }, done) {
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
+  }
   }
 
   on('[data-act=notebook]', (e) => {
@@ -450,6 +608,16 @@ export function showScene(id, { clues, clock }, done) {
     const ok = once(() =>
       done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report }),
     );
+    coach(
+      'outcome',
+      [
+        { sel: '.outcome .mark', text: '結果は4段階です。◎最善 ○安全だが遅い △惜しい(たまたま無事) ×引っかかった' },
+        { sel: '.outcome .rule', text: 'この判断が、3つの基本動作のどれで解けるかです' },
+        { sel: '.outcome .effects', text: 'ゲージの変化です。引っかかると「漏洩リスク」、確かめすぎや人任せだと「業務の遅れ」がたまります' },
+        ...(hasMarks ? [{ sel: '.evidence', text: '「決め手」では、どこを見れば見抜けたかが黄色く光ります。手帳の本物とも見比べてみましょう' }] : []),
+      ],
+      () => {},
+    );
     on('[data-act=ok]', ok);
     setKeys((e) => {
       if (e.code === 'Enter') ok();
@@ -508,6 +676,7 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
         <div><dt>業務の遅れ(最大)</dt><dd>${Math.round(sum.maxDelay)}%</dd></div>
         <div><dt>最善の判断</dt><dd>${sum.goods} / ${sum.total}</dd></div>
       </dl>
+      <p class="how">評価 ${sum.points}点 = 100 − 漏洩リスク(最大) − 業務の遅れ(最大)×0.7 + 最善の判断×2</p>
       <ul class="judges">${sum.judgments
         .map((j) => `<li class="${j.tier}"><span>${TIERS[j.tier].mark}</span>${esc(sceneName(j.id))}<em>${esc(TIERS[j.tier].label)}</em></li>`)
         .join('')}</ul>

@@ -656,3 +656,69 @@ mark { color: #1d2433; background: #ffd23f; padding: 0 2px; border-radius: 2px; 
 .judges li.ok span, .judges li.close span { color: var(--yellow); }
 .judges li.fooled span { color: var(--red); }
 .review .next { font-size: 13px; color: var(--quiet); }
+
+/* ---------- オープニングムービー ---------- */
+body.movie #hud, body.movie #pad, body.movie #banner, body.movie #prompt { visibility: hidden; }
+#overlay.is-movie { background: transparent; padding: 0; align-items: flex-end; cursor: pointer; }
+.movie-ui { width: 100%; }
+.movie-skip { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 2; font-size: 13px; padding: 0.4em 0.9em; background: #0b112ccc; }
+.movie-cap {
+  margin: 0 auto;
+  width: min(760px, 100%);
+  min-height: 112px;
+  padding: 14px 20px max(18px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, #05070ff2 30%);
+  text-align: center;
+}
+.movie-name { margin: 0 0 2px; min-height: 1em; font-size: 13px; color: var(--yellow); }
+.movie-text { margin: 0; font-size: 18px; line-height: 1.7; text-shadow: 2px 2px 0 #000; }
+.movie-text.in { animation: capin 0.35s ease-out; }
+.movie-cap.speak .movie-text { color: #fff4e0; }
+.movie-dots { display: block; margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--quiet); }
+@keyframes capin { from { opacity: 0; transform: translateY(6px); } }
+body.portrait .movie-cap { min-height: calc(var(--deck, 200px) + env(safe-area-inset-bottom)); display: flex; flex-direction: column; justify-content: center; background: #05070f; }
+body.portrait .movie-text { font-size: 17px; }
+
+/* ---------- 光らせて説明する(会話・初めての説明) ---------- */
+.spot {
+  position: relative;
+  z-index: 25;
+  outline: 3px solid var(--yellow) !important;
+  outline-offset: 3px;
+  border-radius: 6px;
+  animation: spot 1s ease-in-out infinite;
+}
+@keyframes spot { 50% { outline-color: #fff4b0; box-shadow: 0 0 18px #ffd23f88; } }
+#hud .spot { background: #000c; }
+#coach {
+  position: fixed;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: min(560px, calc(100% - 24px));
+  padding: 10px 12px;
+  background: #0b112cf7;
+  border: 2px solid var(--yellow);
+  box-shadow: 0 8px 30px #000c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+#coach .face { flex: none; image-rendering: pixelated; border-radius: 6px; background: #141c43; }
+#coach p { margin: 0; }
+#coach .coach-who { font-size: 11px; color: var(--yellow); }
+#coach button { flex: none; text-align: center; }
+
+/* ---------- 手帳のタブ・きほん ---------- */
+.tabs { display: flex; gap: 6px; margin: 8px 0 4px; }
+.tabs button { flex: 1; text-align: center; padding: 0.4em; font-size: 14px; }
+.tabs button.on { border-color: var(--yellow); color: var(--yellow); }
+.basics h3 { margin: 12px 0 4px; font-size: 15px; color: var(--yellow); }
+.basics ol, .basics ul { margin: 0; padding-left: 1.4em; font-size: 14px; }
+.basics p { font-size: 14px; }
+.basics .c-leak { color: var(--orange); font-weight: normal; }
+.basics .c-delay { color: #b18cff; font-weight: normal; }
+.review .how { font-size: 12px; color: var(--quiet); margin: 2px 0 6px; }

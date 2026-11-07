@@ -195,7 +195,8 @@ export class Game {
       this.grid[cy][cx] = 'U';
       this.score += 10;
       sfx.coin();
-      this.floats.push({ x: cx * T + 8, y: cy * T - 4, text: '+10', life: 0.7, coin: true });
+      this.workDone(cx * T + 8, cy * T - 4);
+      this.hooks.hud?.(this);
     } else if (ch === 'H') {
       this.grid[cy][cx] = 'U';
       this.items.push({ kind: 'reboot', x: cx * T, y: cy * T - T, w: T, h: T, rise: T });
@@ -222,6 +223,12 @@ export class Game {
     if (this.leak >= 100) this.gameOver('leak');
   }
 
+  // 業務データを拾った: 仕事が片づいて、業務の遅れが少し減る
+  workDone(x, y) {
+    this.delay = Math.max(0, this.delay - 3);
+    if (x !== undefined) this.floats.push({ x, y, text: '遅れ-3%', life: 0.8, coin: true });
+  }
+
   // ---- 業務の遅れゲージ ----
   addDelay(n, cause) {
     if (this.over) return;
@@ -239,6 +246,11 @@ export class Game {
     this.hooks.over?.(this);
   }
 
+  // 練習区間(地図の左端から stage.tutorialEnd マスまで)では、ゲージを増やさない
+  inTutorial() {
+    return this.p.x < (this.stage.tutorialEnd || 0) * T;
+  }
+
   hurt(cause, n, from) {
     const p = this.p;
     if (p.inv > 0 || this.over) return;
@@ -246,7 +258,8 @@ export class Game {
     p.vx = (from && p.x + p.w / 2 < from.x + from.w / 2 ? -1 : 1) * 120;
     p.vy = -170;
     sfx.hurt();
-    this.addLeak(n, cause);
+    if (this.inTutorial()) this.hooks.banner?.('練習なので、ノーカウント!', 'info');
+    else this.addLeak(n, cause);
     this.burst(p.x + 5, p.y + 7, 8, '#ff004d');
   }
 
@@ -255,7 +268,7 @@ export class Game {
     this.score += 50;
     sfx.stomp();
     this.burst(e.x + 6, e.y + 5, 10, e.kind === 'phish' ? '#fff1e8' : '#ff77a8');
-    this.floats.push({ x: e.x + 6, y: e.y - 4, text: '+50', life: 0.7 });
+    this.floats.push({ x: e.x + 6, y: e.y - 4, text: '撃退!', life: 0.7 });
   }
 
   burst(x, y, n, color) {
@@ -332,8 +345,12 @@ export class Game {
 
     // 落とし穴
     if (p.y > this.rows * T + 24) {
-      this.hooks.banner?.('足元を確かめずに、本番環境へ落ちた……', 'bad');
-      this.addLeak(10, 'pit');
+      if (this.inTutorial()) {
+        this.hooks.banner?.('本番環境に落ちた! ……練習なので、ノーカウント', 'info');
+      } else {
+        this.hooks.banner?.('足元を確かめずに、本番環境へ落ちた……', 'bad');
+        this.addLeak(10, 'pit');
+      }
       if (this.over) return;
       Object.assign(p, { x: this.safe.x, y: this.safe.y, vx: 0, vy: 0, inv: 1.3 });
     }
@@ -383,6 +400,7 @@ export class Game {
       if (!c.taken && overlap(p, c)) {
         c.taken = true;
         this.score += 10;
+        this.workDone();
         sfx.coin();
         this.hooks.hud?.(this);
       }
@@ -409,7 +427,12 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
-        if (h.line) this.hooks.say?.(h.line);
+        if (h.line?.talk) {
+          p.vx = 0;
+          this.hooks.lesson?.(h.line.talk);
+          return;
+        }
+        if (h.line?.say) this.hooks.say?.(h.line.say);
       }
     }
 

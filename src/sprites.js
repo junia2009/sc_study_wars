@@ -60,6 +60,8 @@ export function buildSprites() {
     shield: toCanvas(A.shield()),
     bookmark: toCanvas(A.bookmark()),
     ledger: toCanvas(A.ledger()),
+    hero: [0, 1, 0, 2].map((f) => pair(A.hero(f))),
+    anglerBlink: toCanvas(A.angler(true)),
     faces: {
       kuroda: toCanvas(A.kuroda()),
       sato: toCanvas(A.sato()),

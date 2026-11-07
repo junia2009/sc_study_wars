@@ -148,6 +148,9 @@ function initTouch(onAnyInput) {
     zone.addEventListener('pointercancel', up);
     zone.addEventListener('lostpointercapture', up);
     zone.addEventListener('contextmenu', (e) => e.preventDefault());
+    // タップのあとにブラウザが送ってくる「クリック」を止める
+    // (B で手帳を開いた直後、同じ場所にある「とじる」が押されてしまうのを防ぐ)
+    zone.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
   }
 
   // プレイ中に、ダブルタップやピンチで画面が拡大・スクロールされないようにする

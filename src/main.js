@@ -8,6 +8,7 @@ import { STAGE1 } from '../data/stage1.js';
 import { SCENES } from '../data/scenes.js';
 import { MONDAY, GRADES } from '../data/story.js';
 import * as UI from './ui.js';
+import { Movie } from './movie.js';
 
 export const GAME_TITLE = 'SC STUDY WARS';
 export const GAME_SUBTITLE = '障害報告書は書きたくない';
@@ -51,7 +52,16 @@ UI.initUI({
   face: (k) => (faceCache[k] ??= spriteURL(S.faces[k], 3)),
   clueImg: (k) => (clueCache[k] ??= spriteURL(S[k], 2)),
   name: () => playerName,
+  // タッチ端末か(操作の説明の書き方を変える)
+  touch: () => document.body.classList.contains('touch') || matchMedia('(pointer: coarse)').matches,
+  // 初めて見たときの説明を、もう見たか
+  seen: (k) => !!seen[k],
+  markSeen: (k) => {
+    seen[k] = true;
+    store.set('scsw.seen', seen);
+  },
 });
+const seen = store.get('scsw.seen', {});
 
 // ---- 画面の大きさ ----
 // 画面の形に合わせて、拡大率と「見える範囲(横 vw × 縦 vh)」を決める。
@@ -122,6 +132,11 @@ game = new Game(STAGE1, DAY, S, {
     pause();
     UI.talk(lines, resume);
   },
+  // ガードの説明(チュートリアル): ゲームを止めて会話で説明する
+  lesson: (lines) => {
+    pause();
+    UI.talk(lines, resume);
+  },
   // 手帳(B ボタン)
   notebook: () => {
     pause();
@@ -172,6 +187,22 @@ function review(gm) {
   UI.talk(DAY.outro, () => UI.showReview(sum, opts));
 }
 
+// ---- オープニングムービー ----
+const movie = new Movie(S, (cap, shot, total) => UI.setMovieCaption(cap, shot, total));
+function playOpening(onEnd) {
+  mode = 'movie';
+  setGameInput(false);
+  document.body.classList.add('movie');
+  UI.startMovieUI({ onNext: () => movie.next(), onSkip: () => movie.skip() });
+  movie.start(() => {
+    document.body.classList.remove('movie');
+    UI.hideOverlay();
+    seen.opening = true;
+    store.set('scsw.seen', seen);
+    onEnd();
+  });
+}
+
 function pause() {
   mode = 'dialog';
   setGameInput(false);
@@ -205,7 +236,9 @@ function title() {
       UI.askName(playerName, (name) => {
         playerName = name;
         store.set('scsw.name', name);
-        startDay();
+        // 初めての人には、まずオープニングムービーを見せる
+        if (!seen.opening) playOpening(startDay);
+        else startDay();
       });
     },
     onCards: () => cards(title),
@@ -214,6 +247,12 @@ function title() {
       store.set('scsw.muted', isMuted());
       title();
     },
+    onMovie: seen.opening
+      ? () => {
+          initAudio();
+          playOpening(title);
+        }
+      : null,
   });
 }
 // 一時停止(HUD の ⏸ ボタン、Esc・P キー)
@@ -263,6 +302,14 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   pollPad();
+  if (mode === 'movie') {
+    movie.update(dt);
+    if (movie.active) {
+      movie.render(g, canvas.width, canvas.height, now);
+      requestAnimationFrame(frame);
+      return;
+    }
+  }
   if (mode === 'play') {
     acc += dt;
     while (acc >= STEP && mode === 'play') {

@@ -593,6 +593,46 @@ export function angler(blink = false) {
   return outline(G, '#05030a');
 }
 
+// ---- オープニングムービーの主人公(情シスの新人。右向き、全身) ----
+// frame: 0 立ち / 1・2 歩き
+export function hero(frame = 0) {
+  const G = grid(32, 32);
+  const legs = [[[13, 13], [17, 17]], [[12, 14], [18, 16]], [[14, 12], [16, 18]]][frame];
+  // 足(ズボンと靴)
+  legs.forEach(([top, foot], i) => {
+    thick(G, top, 22, foot, 28, 3, i ? '#2a3256' : '#222844');
+    rect(G, foot - 1, 29, foot + 2, 30, '#15151f');
+  });
+  // 体(白いシャツ)
+  for (let y = 14; y <= 22; y++) for (let x = 11; x <= 20; x++) {
+    if ((x === 11 || x === 20) && y === 14) continue;
+    set(G, x, y, x < 14 ? '#ffffff' : x < 18 ? '#e6ecf5' : '#c3cbe0');
+  }
+  rect(G, 11, 22, 20, 22, '#222844'); // ベルト
+  // 社員証のストラップと、社員証
+  rect(G, 15, 14, 15, 18, C.b3);
+  rect(G, 14, 19, 17, 21, '#ffffff');
+  rect(G, 15, 20, 16, 20, C.b2);
+  // 腕(歩くと振る)
+  const sw = frame === 1 ? 1 : frame === 2 ? -1 : 0;
+  rect(G, 19, 15 + 0, 20, 20 + sw, '#d6dcea');
+  rect(G, 19, 21 + sw, 20, 22 + sw, SKIN[1]);
+  // 頭
+  for (let y = 4; y <= 13; y++) for (let x = 11; x <= 20; x++) {
+    if (!inRound(x, y, 11, 4, 20, 13, 3)) continue;
+    set(G, x, y, x > 17 ? SKIN[0] : SKIN[1]);
+  }
+  // 髪(黒に近い茶)
+  shape(G, 10, 2, 21, 9, (x, y) => inRound(x, y, 10, 2, 21, 12, 4) && (y < 6 || x < 14), (x, y) => ((x + y) % 4 ? '#3b2a24' : '#55392e'));
+  rect(G, 15, 5, 20, 5, '#3b2a24');
+  set(G, 20, 6, '#3b2a24');
+  // 目と口
+  rect(G, 18, 8, 18, 9, '#1a1a24');
+  set(G, 19, 11, '#c45a5a');
+  set(G, 13, 9, SKIN[2]); // 耳
+  return outline(G, '#0b0d18');
+}
+
 // すべての絵(形のチェック用)
 export function allArt() {
   return {
@@ -616,5 +656,7 @@ export function allArt() {
     kuroda: kuroda(),
     sato: sato(),
     angler: angler(),
+    hero0: hero(0),
+    hero1: hero(1),
   };
 }
