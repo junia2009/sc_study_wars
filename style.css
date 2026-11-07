@@ -318,7 +318,7 @@ button:disabled { opacity: 0.6; cursor: default; }
 .badges span { padding: 2px 8px; font-size: 13px; color: #000; background: var(--yellow); }
 .mini-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 8px 0 0; list-style: none; }
 .mini-cards li { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; background: var(--panel-2); font-size: 14px; }
-.mini-cards img, .card img { image-rendering: pixelated; }
+.mini-cards img, .card img { image-rendering: pixelated; object-fit: contain; }
 
 /* 解説カード */
 .cards { width: min(760px, 100%); }
@@ -351,7 +351,7 @@ button:disabled { opacity: 0.6; cursor: default; }
   .mail-row { padding: 4px 10px; }
   .mail-body, .app-body { padding: 6px 10px 8px; }
   .choices button { padding: 0.45em 0.8em; font-size: 14px; }
-  .title .hero { width: 64px; height: 64px; }
+  .title .hero { width: 96px; height: 96px; }
   .title h1 { font-size: 32px; }
   .title .keys { display: none; }
   .report table { font-size: 13px; }

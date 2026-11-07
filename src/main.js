@@ -3,6 +3,7 @@ import { buildSprites, spriteURL } from './sprites.js';
 import { initInput, pollPad, setGameInput, clearPressed } from './input.js';
 import { initAudio, setMuted, isMuted } from './audio.js';
 import { Game, VIEW_W, VIEW_H } from './game.js';
+import { RES } from './sprites.js';
 import { STAGE1 } from '../data/stage1.js';
 import { SCENES } from '../data/scenes.js';
 import * as UI from './ui.js';
@@ -12,14 +13,14 @@ export const GAME_SUBTITLE = '障害報告書は書きたくない';
 
 const canvas = document.querySelector('#screen');
 const g = canvas.getContext('2d');
-canvas.width = VIEW_W;
-canvas.height = VIEW_H;
+canvas.width = VIEW_W * RES;
+canvas.height = VIEW_H * RES;
 g.imageSmoothingEnabled = false;
 
 const S = buildSprites();
 const CARD_SPRITE = { pass: S.pass[0].r, shield: S.shield, phish: S.phish[0].r, door: S.door };
 const cardImgCache = {};
-const cardImg = (c) => (cardImgCache[c.id] ??= spriteURL(CARD_SPRITE[c.sprite] || S.coin, 4));
+const cardImg = (c) => (cardImgCache[c.id] ??= spriteURL(CARD_SPRITE[c.sprite] || S.crystal[0], 2));
 
 // ---- 保存(端末の中だけ。使えないときは保存しないで続ける) ----
 const store = {
@@ -122,7 +123,7 @@ function title() {
     title: GAME_TITLE,
     subtitle: GAME_SUBTITLE,
     owned: owned.length,
-    heroURL: spriteURL(S.guard.stand.r, 6),
+    heroURL: spriteURL(S.guard.stand[0].r, 4),
     muted: isMuted(),
     onStart: () => {
       initAudio();

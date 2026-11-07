@@ -1,6 +1,6 @@
 // オフラインでも遊べるように、ゲームのファイルを端末に保存する。
 // ファイルを変えたら VERSION を上げること(古い保存が消えて、新しいものに入れ替わる)。
-const VERSION = 'scsw-v0.1.1';
+const VERSION = 'scsw-v0.2.0';
 const FILES = [
   './',
   './index.html',

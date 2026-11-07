@@ -67,7 +67,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
   setKeys(null);
   show(
     `<div class="panel title">
-      <img class="hero" src="${heroURL}" alt="" width="96" height="96">
+      <img class="hero" src="${heroURL}" alt="" width="128" height="128">
       <h1>${esc(title)}</h1>
       <p class="sub">〜 ${esc(subtitle)} 〜</p>
       <p class="lead">情報漏洩の手口を、遊びながら見抜けるようになる横スクロールアクション。</p>

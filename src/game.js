@@ -1,6 +1,6 @@
 // ステージの中身: 地図・主人公・敵・仕掛け・描画。
 // 画面に文字を出す場面(判断シーン・扉・報告書など)は hooks で外(ui.js)に任せる。
-import { TILE as T } from './sprites.js';
+import { TILE as T, RES } from './sprites.js';
 import { held, take } from './input.js';
 import { sfx } from './audio.js';
 
@@ -470,145 +470,199 @@ export class Game {
   }
 
   // ---- 描画 ----
+  // 計算は 320×180 の単位、描画はその RES 倍(640×360)の細かさで行う。
   render(g, now) {
     const S = this.S;
-    const cx = Math.round(this.camX);
-    const cy = Math.round(this.camY);
+    const R = RES;
+    const W = VIEW_W * R;
+    const H = VIEW_H * R;
+    const X = (wx) => Math.round((wx - this.camX) * R);
+    const Y = (wy) => Math.round((wy - this.camY) * R);
     const t = now / 1000;
+    const camD = this.camX * R; // 画面のドット単位でのカメラ位置
+    const base = Y((this.rows - 2) * T); // 床の上端
 
-    // 背景: 奥のデータの流れと、手前のオフィス
-    g.fillStyle = '#0b0f24';
-    g.fillRect(0, 0, VIEW_W, VIEW_H);
-    g.fillStyle = '#121a3a';
-    const off1 = Math.floor(cx * 0.2);
-    for (let x = -(off1 % 24); x < VIEW_W; x += 24) {
-      const seed = Math.floor((x + off1) / 24);
-      const h = 30 + ((seed * 37) % 60);
-      const y = (t * (10 + (seed % 5) * 4) + seed * 53) % (VIEW_H + h);
-      g.fillRect(x + 6, y - h, 1, h);
+    // ---- 背景 ----
+    // 空: 帯状のグラデーション
+    const bands = ['#060918', '#080c20', '#0a0f28', '#0c1330', '#0f1738', '#111b41'];
+    bands.forEach((c, i) => {
+      g.fillStyle = c;
+      g.fillRect(0, Math.floor((i * H) / bands.length), W, Math.ceil(H / bands.length) + 1);
+    });
+    // 奥: サーバーラック(ランプが点滅)
+    const o1 = Math.floor(camD * 0.15);
+    for (let x = -(o1 % 132) - 132; x < W; x += 132) {
+      const seed = Math.floor((x + o1) / 132) + 50;
+      const rh = 150 + ((seed * 53) % 70);
+      const rx = x + 14;
+      const ry = base - rh;
+      g.fillStyle = '#0a1130';
+      g.fillRect(rx, ry, 76, rh);
+      g.fillStyle = '#0c1436';
+      g.fillRect(rx + 4, ry + 4, 68, rh - 4);
+      for (let k = 0; k + 14 < rh; k += 12) {
+        g.fillStyle = '#080e28';
+        g.fillRect(rx + 6, ry + 8 + k, 64, 3);
+        const on = (seed * 7 + k / 12 + Math.floor(t * 1.5)) % 6 === 0;
+        g.fillStyle = on ? '#2fd679' : '#142a55';
+        g.fillRect(rx + 60, ry + 12 + k, 4, 3);
+        g.fillStyle = '#132150';
+        g.fillRect(rx + 10, ry + 12 + k, 22, 2);
+      }
     }
-    const off2 = Math.floor(cx * 0.5);
-    for (let x = -(off2 % 56); x < VIEW_W; x += 56) {
-      const bx = x;
-      g.fillStyle = '#151d40';
-      g.fillRect(bx, 140, 44, 4); // 机
-      g.fillRect(bx + 4, 144, 2, 16);
-      g.fillRect(bx + 38, 144, 2, 16);
-      g.fillStyle = '#1a2550';
-      g.fillRect(bx + 12, 124, 20, 14); // モニター
-      g.fillRect(bx + 20, 138, 4, 2);
-      g.fillStyle = '#20356a';
-      g.fillRect(bx + 14, 126, 16, 10);
+    // 中: 流れるデータの筋
+    const o2 = Math.floor(camD * 0.3);
+    for (let x = -(o2 % 40) - 40; x < W; x += 40) {
+      const seed = Math.floor((x + o2) / 40) + 100;
+      const len = 40 + ((seed * 37) % 60);
+      const sp = 40 + (seed % 5) * 14;
+      const y = ((t * sp + seed * 97) % (H + len)) - 0;
+      const sx = x + ((seed * 13) % 24);
+      g.fillStyle = '#142152';
+      g.fillRect(sx, y - len, 2, len);
+      g.fillStyle = '#1f3a86';
+      g.fillRect(sx, y - 14, 2, 10);
+      g.fillStyle = '#4f8cff';
+      g.fillRect(sx, y - 4, 2, 4);
+    }
+    // 手前: オフィスの机とモニター
+    const o3 = Math.floor(camD * 0.55);
+    for (let x = -(o3 % 120) - 120; x < W; x += 120) {
+      g.fillStyle = '#121a40';
+      g.fillRect(x + 6, base - 34, 4, 34);
+      g.fillRect(x + 84, base - 34, 4, 34);
+      g.fillStyle = '#18224e';
+      g.fillRect(x, base - 40, 94, 6);
+      g.fillStyle = '#1d2a5e';
+      g.fillRect(x, base - 40, 94, 2);
+      g.fillStyle = '#18224e';
+      g.fillRect(x + 26, base - 80, 46, 32);
+      g.fillRect(x + 44, base - 48, 10, 8);
+      g.fillStyle = '#10245a';
+      g.fillRect(x + 30, base - 76, 38, 24);
+      g.fillStyle = '#183a78';
+      g.fillRect(x + 33, base - 72, 22, 2);
+      g.fillRect(x + 33, base - 66, 28, 2);
+      g.fillRect(x + 33, base - 60, 16, 2);
     }
 
-    // マス
-    const c0 = Math.floor(cx / T);
+    // ---- マス ----
+    const c0 = Math.max(0, Math.floor(this.camX / T));
     const c1 = Math.min(this.cols - 1, c0 + Math.ceil(VIEW_W / T) + 1);
+    const ph = t % 3;
+    const qf = ph < 0.5 ? 1 + Math.floor(ph / 0.125) : 0;
     for (let y = 0; y < this.rows; y++) {
       for (let x = c0; x <= c1; x++) {
         const ch = this.grid[y][x];
         if (ch === '.' || ch === 'H') continue;
         const b = this.bumps.find((bb) => bb.cx === x && bb.cy === y);
-        const dy = b ? -3 : 0;
+        const dy = b ? -6 : 0;
+        const v = (x * 7 + y * 3) % 2;
         const img =
-          ch === 'G' ? (this.tile(x, y - 1) === 'G' ? S.ground : S.groundTop) :
+          ch === 'G' ? (this.tile(x, y - 1) === 'G' ? S.ground[v] : S.groundTop[v]) :
           ch === 'B' ? S.block :
-          ch === 'Q' ? S.qblock :
+          ch === 'Q' ? S.qblock[Math.min(qf, 4)] :
           S.used;
-        g.drawImage(img, x * T - cx, y * T - cy + dy);
+        g.drawImage(img, X(x * T), Y(y * T) + dy);
       }
     }
 
-    // 端末
+    // ---- 端末 ----
     for (const term of this.terms) {
-      const x = term.x - cx;
-      const y = term.y - cy;
-      g.drawImage(term.used ? S.terminalOff : S.terminal, x, y);
+      const x = X(term.x);
+      const y = Y(term.y);
+      g.drawImage(term.used ? S.terminalOff : S.terminal[Math.floor(t * 3) % 4], x, y);
       if (!term.used) {
-        const by = y - 12 + Math.round(Math.sin(t * 5) * 1.5);
-        g.fillStyle = '#ffec27';
-        g.fillRect(x + 5, by, 6, 8);
-        g.fillStyle = '#000';
-        g.fillRect(x + 7, by + 1, 2, 4);
-        g.fillRect(x + 7, by + 6, 2, 1);
+        // 「!」のふきだし
+        const by = y - 28 + Math.round(Math.sin(t * 5) * 3);
+        g.fillStyle = '#070d26';
+        g.fillRect(x + 8, by - 2, 16, 22);
+        g.fillRect(x + 14, by + 20, 4, 3);
+        g.fillStyle = '#ffd23f';
+        g.fillRect(x + 10, by, 12, 18);
+        g.fillStyle = '#fff4b0';
+        g.fillRect(x + 10, by, 12, 2);
+        g.fillStyle = '#070d26';
+        g.fillRect(x + 14, by + 3, 4, 8);
+        g.fillRect(x + 14, by + 13, 4, 3);
       }
     }
 
-    // 扉
+    // ---- 扉 ----
     for (const d of this.doors) {
-      const x = d.x - cx;
-      const y = d.y - cy;
+      const x = X(d.x);
+      const y = Y(d.y);
       g.drawImage(S.door, x, y);
       if (d.marked) {
-        g.strokeStyle = '#ff004d';
-        g.lineWidth = 2;
+        g.strokeStyle = '#ff3b5c';
+        g.lineWidth = 4;
         g.beginPath();
-        g.moveTo(x + 2, y + 10);
-        g.lineTo(x + 14, y + 30);
-        g.moveTo(x + 14, y + 10);
-        g.lineTo(x + 2, y + 30);
+        g.moveTo(x + 4, y + 20);
+        g.lineTo(x + 28, y + 60);
+        g.moveTo(x + 28, y + 20);
+        g.lineTo(x + 4, y + 60);
         g.stroke();
       }
       if (d === this.nearDoor && !d.marked) {
-        g.fillStyle = '#fff1e8';
-        g.fillRect(x + 6, y - 8 + Math.round(Math.sin(t * 6)), 4, 4);
+        const ay = y - 16 + Math.round(Math.sin(t * 6) * 2);
+        g.fillStyle = '#fff4b0';
+        for (let i = 0; i < 5; i++) g.fillRect(x + 8 + i * 2, ay + i * 2, 16 - i * 4, 2);
       }
     }
 
-    // データの粒
+    // ---- データの粒・アイテム ----
     for (const c of this.coins) {
       if (c.taken) continue;
-      g.drawImage(S.coin, c.x - cx, c.y - cy + Math.round(Math.sin(t * 4 + c.x) * 1.5));
+      const f = Math.floor(t * 8 + c.x / 16) % 4;
+      g.drawImage(S.crystal[f], X(c.x), Y(c.y) + Math.round(Math.sin(t * 4 + c.x) * 3));
     }
-
-    // アイテム
     for (const it of this.items) {
       if (it.taken) continue;
-      g.drawImage(S.reboot, it.x - cx, it.y - cy + it.rise);
+      g.drawImage(S.reboot, X(it.x), Y(it.y + it.rise) + Math.round(Math.sin(t * 4) * 2));
     }
 
-    // 敵
+    // ---- 敵 ----
     for (const e of this.enemies) {
       if (e.dead) continue;
-      const set = S[e.kind];
-      const fr = set[Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
       if (e.flash > 0 && Math.floor(t * 30) % 2) continue;
-      g.drawImage(fr, Math.round(e.x - 2 - cx), Math.round(e.y - 6 - cy));
+      const fr = S[e.kind][Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
+      g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
     }
 
-    // 主人公
+    // ---- 主人公 ----
     const p = this.p;
     if (!(p.inv > 0 && Math.floor(t * 20) % 2)) {
       const side = p.face > 0 ? 'r' : 'l';
+      const blink = t % 3.2 < 0.12 ? 1 : 0;
       const fr = !p.onGround
-        ? S.guard.jump[side]
+        ? (p.vy < 0 ? S.guard.jump : S.guard.fall)[side]
         : Math.abs(p.vx) > 8
           ? S.guard.run[Math.floor(p.anim * 2) % 4][side]
-          : S.guard.stand[side];
-      g.drawImage(fr, Math.round(p.x - 3 - cx), Math.round(p.y - 2 - cy));
+          : S.guard.stand[blink][side];
+      g.drawImage(fr, X(p.x - 3), Y(p.y - 2));
     }
     // 多要素認証の盾が光る
     if (this.shieldFlash > 0) {
       const a = Math.min(1, this.shieldFlash);
-      g.strokeStyle = `rgba(41,173,255,${a})`;
-      g.lineWidth = 1;
+      g.strokeStyle = `rgba(92,200,255,${a})`;
+      g.lineWidth = 2;
       g.beginPath();
-      g.arc(Math.round(p.x + 5 - cx), Math.round(p.y + 7 - cy), 12 + Math.sin(t * 12) * 1.5, 0, Math.PI * 2);
+      g.arc(X(p.x + 5), Y(p.y + 7), 26 + Math.sin(t * 12) * 3, 0, Math.PI * 2);
       g.stroke();
     }
 
-    // 演出
+    // ---- 演出 ----
     for (const pt of this.parts) {
       g.fillStyle = pt.color;
-      g.fillRect(Math.round(pt.x - cx), Math.round(pt.y - cy), 2, 2);
+      g.fillRect(X(pt.x), Y(pt.y), 4, 4);
     }
-    g.font = '8px monospace';
+    g.font = '16px "DotGothic16", monospace';
     g.textAlign = 'center';
     for (const f of this.floats) {
-      g.fillStyle = '#000';
-      g.fillText(f.text, Math.round(f.x - cx) + 1, Math.round(f.y - cy) + 1);
-      g.fillStyle = f.coin ? '#ffec27' : '#fff1e8';
-      g.fillText(f.text, Math.round(f.x - cx), Math.round(f.y - cy));
+      g.fillStyle = '#070d26';
+      g.fillText(f.text, X(f.x) + 2, Y(f.y) + 2);
+      g.fillStyle = f.coin ? '#ffd23f' : '#fff4f0';
+      g.fillText(f.text, X(f.x), Y(f.y));
     }
   }
 

@@ -45,14 +45,15 @@ style.css           見た目(HUD・判断シーン・報告書・カード)
 src/main.js         起動と画面の切り替え、ゲームのループ
 src/game.js         ステージの中身: 物理・当たり判定・敵・仕掛け・描画(手触りは PH で調整)
 src/ui.js           文字を出す画面(HTML で描く)
-src/art.js          ドット絵のデータ(1文字 = 1ドット、PICO-8 の16色)
-src/sprites.js      ドット絵を画像にする。床やブロックはここでコードで描いている
+src/art.js          ドット絵(32×32 ドット)。形と陰影をコードで描き、輪郭は自動で付ける
+src/sprites.js      ドット絵を画像にする。画面は 640×360 で描く(計算は 320×180 の単位)
 src/input.js        キーボード・画面のボタン・ゲームパッド
 src/audio.js        効果音(Web Audio で、その場で作る)
 data/stage1.js      ステージの地図(文字の地図)と、ヒント・扉の看板
 data/scenes.js      判断シーンの中身
 data/cards.js       解説カード、障害報告書の原因と再発防止策、タイトルのひとこと
-scripts/check-art.mjs  ドット絵と地図の行の長さがそろっているかを確かめる
+scripts/check-art.mjs  ドット絵と地図の形を確かめる
+art-preview.html    ドット絵を一覧で見る(確認用)
 sw.js・manifest.webmanifest  PWA(オフラインでも遊べる)
 icons/              アプリのアイコン(scripts/make-icons.cjs で書き出す)
 ```
@@ -61,8 +62,8 @@ icons/              アプリのアイコン(scripts/make-icons.cjs で書き出
 
 ### ドット絵を描き足すとき
 
-`src/art.js` に文字で描く。`.` が透明、`0`〜`9` と `a`〜`f` が色の番号。
-描いたら `node scripts/check-art.mjs` で形を確かめる。
+`src/art.js` に、1マス = 32×32 ドットで描く(四角・丸・線と陰影をコードで描き、最後に `outline()` で輪郭を付ける)。
+色は `C` にまとめてある。描いたら `node scripts/check-art.mjs` で形を確かめ、`art-preview.html` で見た目を確かめる。
 
 ### アイコンを描き直すとき
 
