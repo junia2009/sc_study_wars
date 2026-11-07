@@ -54,6 +54,8 @@ export class Game {
     this.floats = [];
     this.terms = [];
     this.hints = [];
+    this.tutorialGo = false; // 練習区間の敵が動いてよいか(敵の説明のあと)
+    this.sighted = {}; // 初めて画面に映った敵の種類
     this.clueItems = [];
     this.goal = null;
     this.bumps = [];
@@ -358,8 +360,21 @@ export class Game {
     // 敵
     for (const e of this.enemies) {
       if (e.dead) continue;
+      // 練習区間の敵は、敵の説明が終わるまでその場で待つ
+      if (e.x < (this.stage.tutorialEnd || 0) * T && !this.tutorialGo) continue;
       if (!e.awake && e.x < this.camX + this.vw + 24) e.awake = true;
       if (!e.awake) continue;
+      // 初めて画面に映った種類の敵なら、ガードが説明する
+      if (!this.sighted[e.kind] && e.x < this.camX + this.vw - 8 && e.x > this.camX) {
+        this.sighted[e.kind] = true;
+        const first = this.day.firstSight?.[e.kind];
+        if (first?.talk) {
+          p.vx = 0;
+          this.hooks.lesson?.(first.talk);
+          return;
+        }
+        if (first?.say) this.hooks.say?.(first.say);
+      }
       e.flash = Math.max(0, e.flash - dt);
       e.vx = e.dir * e.speed;
       e.vy = Math.min(PH.maxFall, e.vy + PH.gravity * dt);
@@ -427,6 +442,7 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
+        if (h.line?.release) this.tutorialGo = true;
         if (h.line?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(h.line.talk);
