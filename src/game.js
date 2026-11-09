@@ -3,6 +3,7 @@
 import { TILE as T, RES } from './sprites.js';
 import { held, take } from './input.js';
 import { sfx } from './audio.js';
+import { gimmickMethods } from './gimmicks.js';
 
 export const VIEW_W = 320; // 見える横幅の標準。画面の形に合わせて this.vw が変わる(200〜400)
 export const VIEW_H = 180; // 見える高さの標準。縦向きでは床の上の空まで映して高くする(180〜300)
@@ -23,7 +24,7 @@ const PH = {
   stompHeld: 310, // 踏んだときジャンプを押していれば、高く跳ねる
 };
 
-const SOLID = new Set(['G', 'B', 'Q', 'U']);
+const SOLID = new Set(['G', 'B', 'Q', 'U', 'X', '#', 'Y']); // X 認証ゲート / # 仕切りの壁 / Y 添付ファイルの箱
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -63,6 +64,7 @@ export class Game {
     let ti = 0;
     let hi = 0;
     const mails = [];
+    this.gimmickReset();
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const ch = this.grid[y][x];
@@ -79,14 +81,22 @@ export class Game {
           case 'i': this.hints.push({ x: px, line: this.day.hints[hi++], shown: false }); break;
           case 'K': this.clueItems.push({ kind: 'bookmark', x: px, y: py, w: T, h: T }); break;
           case 'L': this.clueItems.push({ kind: 'ledger', x: px, y: py, w: T, h: T }); break;
+          case 'J': this.clueItems.push({ kind: 'rules', x: px, y: py, w: T, h: T }); break;
+          case 'V': this.clueItems.push({ kind: 'extlist', x: px, y: py, w: T, h: T }); break;
+          case 'N': this.clueItems.push({ kind: 'naisen', x: px, y: py, w: T, h: T }); break;
+          case 'F': this.clueItems.push({ kind: 'irp', x: px, y: py, w: T, h: T }); break;
           case 'Z': this.goal = { x: px, y: py - T, w: T, h: T * 2 }; break;
-          default: clear = false;
+          default: clear = this.gimmickTile(ch, px, py, x, y);
         }
         if (clear) this.grid[y][x] = '.';
       }
     }
-    // メール便: 半分を偽物にする(どれが偽物かは毎回変わる)。偽物のドメインは本物の1文字違い
-    const fakes = ['sanple-bussan', 'samp1e-bussan', 'sample-busan', 'sample-bussam', 'sarnple-bussan'];
+    // メール便: 半分を偽物にする(どれが偽物かは毎回変わる)
+    //   月曜: 偽物はドメインが本物の1文字違い / 金曜: ドメインは本物(乗っ取り)で、口座だけが違う
+    const mc = this.day.mails || {};
+    const realDomain = mc.real || 'sample-bussan';
+    const fakes = [...(mc.fakes || ['sanple-bussan', 'samp1e-bussan', 'sample-busan', 'sample-bussam', 'sarnple-bussan'])];
+    const fakeAccounts = [...(mc.account?.fakes || [])];
     for (let i = fakes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [fakes[i], fakes[j]] = [fakes[j], fakes[i]];
@@ -95,12 +105,19 @@ export class Game {
     const fakeSet = new Set(order.slice(0, Math.ceil(mails.length / 2)));
     mails.forEach((m, i) => {
       m.real = !fakeSet.has(i);
-      m.domain = m.real ? 'sample-bussan' : fakes.pop() || 'sanple-bussan';
-      m.speed = 18;
+      if (mc.account) {
+        // 乗っ取り: ドメインはどれも本物。偽物は口座が違う
+        m.domain = realDomain;
+        m.account = m.real ? mc.account.real : fakeAccounts.pop() || mc.account.fakes[0];
+      } else {
+        m.domain = m.real ? realDomain : fakes.pop() || 'sanple-bussan';
+      }
+      m.speed = mc.speed || 18;
       m.gate = 'sort';
       this.enemies.push(m);
     });
     this.sort = { fakes: mails.filter((m) => !m.real).length, reals: mails.filter((m) => m.real).length, caught: 0, delivered: 0, passed: 0, stomped: 0, missed: 0 };
+    this.gimmickAfterParse();
     // 練習区間の敵は、敵の説明が終わるまで待つ
     for (const e of this.enemies) if (e.x < (st.tutorialEnd || 0) * T) e.gate = 'tutorial';
 
@@ -116,6 +133,7 @@ export class Game {
     this.delayCauses = []; // 業務の遅れの原因
     this.overKind = null; // 'leak' | 'delay'
     this.judgments = []; // { id, tier }
+    this.flags = {}; // 判断シーンの選択で立つ印(水曜: パスワードの使い回し)
     this.eye = { found: 0, total: 0, falseN: 0 }; // メールの見抜きの成績
     this.clock = '9:30';
     this.time = 0;
@@ -221,6 +239,8 @@ export class Game {
       sfx.coin();
       this.workDone(cx * T + 8, cy * T - 4);
       this.hooks.hud?.(this);
+    } else if (ch === 'Y') {
+      this.openFile(cx, cy);
     } else if (ch === 'H') {
       this.grid[cy][cx] = 'U';
       this.items.push({ kind: 'reboot', x: cx * T, y: cy * T - T, w: T, h: T, rise: T });
@@ -326,7 +346,7 @@ export class Game {
       this.p.inv = 0.6;
       this.burst(fx, e.y + 5, 10, '#ff3b5c');
       this.floats.push({ x: fx, y: fy, text: '偽物を通した…', life: 1.2 });
-      this.addLeak(12, 'passFake');
+      this.addLeak(12, this.day.mails?.account ? 'accountFake' : 'passFake');
     }
   }
 
@@ -338,7 +358,7 @@ export class Game {
       this.sort.passed++;
       sfx.hurt();
       this.floats.push({ x: fx, y: fy, text: '偽物が受信箱へ…', life: 1.4 });
-      this.addLeak(10, 'passFake');
+      this.addLeak(10, this.day.mails?.account ? 'accountFake' : 'passFake');
     } else {
       this.sort.missed++;
       sfx.bad();
@@ -378,8 +398,29 @@ export class Game {
     this.eye.total += r.total || 0;
     this.eye.falseN += r.falseN || 0;
     if (r.falseN) this.addDelay(r.falseN * 3, 'falseFlag');
+    if (r.flag) Object.assign(this.flags, r.flag);
     this.judgments.push({ id, tier: r.tier });
     this.hooks.hud?.(this);
+  }
+
+  // 水曜: 使い回したパスワードが、よそのサービスから漏れた
+  credentialEvent() {
+    const p = this.p;
+    if (!this.flags.reuse) {
+      this.hooks.say?.({ who: 'guard', text: 'ニュース速報: 有名な通販サイトからパスワードが漏れたそうです。……{name}さんは使い回していないので、大丈夫!' });
+      this.score += 100;
+      return;
+    }
+    this.hooks.banner?.('通販サイトから漏れたパスワードで、勤怠システムに不正ログイン! 漏洩ゲージ +15%', 'bad');
+    this.addLeak(15, 'reuseLeak');
+    // 使い回したパスワードの化身が、前後から押し寄せる
+    for (const dx of [6, 9, -7]) {
+      const x = p.x + dx * T;
+      const e = this.enemy('pass', x, p.y + p.h - 12);
+      e.dir = dx > 0 ? -1 : 1;
+      this.enemies.push(e);
+    }
+    this.hooks.say?.({ who: 'guard', text: 'いつものパスワードが、ほかのサイトから漏れていたんです……! 化身が押し寄せてきます!' });
   }
 
   // ---- 1コマ分すすめる(dt は 1/60 秒で固定) ----
@@ -547,8 +588,19 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
-        if (h.line?.release) this.released[h.line.release] = true;
+        if (h.line?.release) {
+          this.released[h.line.release] = true;
+          if (h.line.release === 'chase' && this.chase) {
+            this.chase.active = true;
+            this.chase.x = p.x - 9 * T;
+          }
+        }
+        if (h.line?.endChase && this.chase) this.chase.active = false;
         const learned = this.hooks.learned?.();
+        if (h.line?.credential) {
+          this.credentialEvent();
+          continue;
+        }
         if (h.line?.sortReport) {
           // 結果のお知らせ。遊び方を覚えた人には、止めずにひとことで
           const line = { who: 'guard', text: this.sortReportText() };
@@ -584,8 +636,20 @@ export class Game {
       }
     }
 
-    // B ボタン(X キー): 手帳を開く
+    // 曜日ごとのギミック
+    if (this.gimmickUpdate(dt)) return;
+    if (this.over) return;
+
+    // 扉の前なら「入る」の案内
+    const nd = this.nearestDoor();
+    if (nd !== this.nearDoorShown) {
+      this.nearDoorShown = nd;
+      this.hooks.prompt?.(nd ? 'B(X キー)で入口に入る' : null);
+    }
+
+    // B ボタン(X キー): 扉の前なら入る、それ以外は手帳を開く
     if (take('act')) {
+      if (this.gimmickAct()) return;
       this.hooks.notebook?.();
       return;
     }
@@ -744,6 +808,11 @@ export class Game {
       for (let x = c0; x <= c1; x++) {
         const ch = this.grid[y][x];
         if (ch === '.' || ch === 'H') continue;
+        if (ch === 'X' || ch === '#' || ch === 'Y') {
+          const bb = this.bumps.find((q) => q.cx === x && q.cy === y);
+          this.drawWallTile(g, ch, X(x * T), Y(y * T) + (bb ? -6 : 0), t);
+          continue;
+        }
         const b = this.bumps.find((bb) => bb.cx === x && bb.cy === y);
         const dy = b ? -6 : 0;
         const v = (x * 7 + y * 3) % 2;
@@ -819,6 +888,9 @@ export class Game {
       if (e.kind === 'mail') this.drawTag(g, e, X(e.x + 6), Y(e.y - 8), t);
     }
 
+    // ---- 曜日ごとのギミック ----
+    this.gimmickRender(g, X, Y, t);
+
     // ---- 主人公 ----
     const p = this.p;
     if (!(p.inv > 0 && Math.floor(t * 20) % 2)) {
@@ -863,22 +935,28 @@ export class Game {
     if (a <= 0) return;
     if (cx < 0 || cx > this.vw * RES) return; // 画面に映っているメール便だけ
     const text = `@${e.domain}`;
+    const sub = e.account ? `口座 ${e.account}` : null;
     g.save();
     g.globalAlpha = a;
     g.font = '600 13px ui-monospace, Menlo, Consolas, monospace';
     g.textAlign = 'center';
     g.textBaseline = 'alphabetic';
-    const w = Math.ceil(g.measureText(text).width) + 10;
+    const w = Math.ceil(Math.max(g.measureText(text).width, sub ? g.measureText(sub).width : 0)) + 10;
     // 画面の端で切れないよう、札は画面の中に収める(指し示す線はメール便の真上のまま)
     const x0 = Math.max(4, Math.min(Math.round(this.vw * RES) - w - 4, Math.round(cx - w / 2)));
-    const y0 = bottom - 20;
+    const hgt = sub ? 34 : 18;
+    const y0 = bottom - hgt - 2;
     g.fillStyle = '#070d26e6';
-    g.fillRect(x0, y0, w, 18);
+    g.fillRect(x0, y0, w, hgt);
     g.fillStyle = '#7fe3ff';
-    g.fillRect(x0, y0 + 17, w, 1);
-    g.fillRect(cx - 1, y0 + 18, 2, 3);
+    g.fillRect(x0, y0 + hgt - 1, w, 1);
+    g.fillRect(cx - 1, y0 + hgt, 2, 3);
     g.fillStyle = '#ffffff';
     g.fillText(text, x0 + w / 2, y0 + 13);
+    if (sub) {
+      g.fillStyle = '#ffd23f';
+      g.fillText(sub, x0 + w / 2, y0 + 29);
+    }
     g.restore();
   }
 
@@ -892,7 +970,7 @@ export class Game {
     const badges = [];
     if (this.maxLeak === 0) badges.push('障害ゼロ件(誰にも褒められない)');
     if (this.judgments.length && goods === this.judgments.length) badges.push('判断ミスゼロ');
-    if (this.clues.bookmark && this.clues.ledger) badges.push('備えあれば憂いなし');
+    if (Object.keys(this.clues).length && this.clueItems.every((c) => c.taken)) badges.push('備えあれば憂いなし');
     if (new Date().getHours() === 3) badges.push('午前3時の英雄');
     return {
       points: Math.round(points),
@@ -905,10 +983,17 @@ export class Game {
       goods,
       total: this.judgments.length,
       judgments: this.judgments,
-      sort: this.sort,
-      eye: this.eye,
+      sort: this.sort.fakes + this.sort.reals ? this.sort : null,
+      eye: this.eye.total ? this.eye : null,
       badges,
-      cards: ['bec', 'phishing', 'verify'],
+      cards: this.day.cards || ['bec', 'phishing', 'verify'],
+      push: this.day.push ? this.pushStats : null,
+      doors: this.doorStats || null,
+      files: this.day.files ? { safe: this.filesSafe, opened: this.files.filter((f) => f.opened).length, total: this.files.length, malware: this.files.filter((f) => f.opened && !f.safe).length } : null,
+      bossDefeated: this.boss ? !!this.boss.dead : null,
     };
   }
 }
+
+// 火曜〜日曜のギミック(gimmicks.js)を足す
+Object.assign(Game.prototype, gimmickMethods);

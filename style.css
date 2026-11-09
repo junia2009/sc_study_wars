@@ -758,3 +758,70 @@ span.cand.plain { background: none; }
   user-select: text;
 }
 .namefield input:focus { border-color: var(--blue); outline: none; }
+
+/* ---------- 火曜〜日曜: チャット・電話・画面の警告 ---------- */
+.mock.chat .mail-bar { background: #4a3b8f; }
+.chat-from { padding: 6px 12px; font-weight: 600; border-bottom: 1px solid #dde2ee; word-break: break-all; font-variant-ligatures: none; }
+.chat-bubbles { padding: 8px 12px 10px; display: grid; gap: 6px; }
+.chat-bubbles .bubble { margin: 0; justify-self: start; max-width: 92%; padding: 4px 10px; background: #fff; border: 1px solid #d3d9e8; border-radius: 4px 12px 12px 12px; }
+.mock.call .mail-bar { background: #1f6b4a; }
+.call-from { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid #dde2ee; }
+.call-from span { flex: none; width: 3.5em; color: #6b7593; }
+.call-body { padding: 8px 12px 10px; }
+.call-body p { margin: 0.25em 0; }
+.mock.screen { background: #2a0610; color: #ffd0dc; }
+.mock.screen .mail-bar { background: #a3122e; }
+.screen-title { padding: 8px 12px 0; font: 700 18px ui-monospace, Menlo, monospace; color: #ff5c7a; letter-spacing: 0.08em; }
+.screen-body { padding: 6px 12px 12px; }
+.screen-body p { margin: 0.25em 0; }
+.mock.screen button.cand { color: #ffd0dc; background: #4a0d1c; border-bottom-color: #ff5c7a; }
+.mock.screen button.cand:hover, .mock.screen button.cand:focus-visible { background: #6b1428; }
+.mock.screen button.cand.flagged { color: #fff; background: #e8344e; }
+
+/* ---------- タイトル: 日を選ぶ ---------- */
+.day-select { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; width: 100%; }
+.day-select button { position: relative; min-width: 0; padding: 0.35em 0; }
+.day-select button:disabled { opacity: 0.35; }
+.day-select button i { position: absolute; right: 2px; top: -2px; font-style: normal; font-size: 11px; color: var(--green); }
+
+/* ---------- 承認の通知(木曜) ---------- */
+#pushes { position: absolute; top: calc(var(--px) * 18); right: calc(var(--px) * 4); z-index: 6; display: grid; gap: 6px; width: min(78%, 300px); }
+.push {
+  position: relative;
+  padding: 8px 10px 10px;
+  color: #1d2433;
+  background: #f4f6fb;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #0008;
+  font: 13px/1.45 system-ui, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  overflow: hidden;
+  animation: push-in 0.2s ease-out;
+}
+.push.gone { opacity: 0; transform: translateY(-6px); transition: 0.2s; }
+@keyframes push-in { from { opacity: 0; transform: translateY(-10px); } }
+.push p { margin: 0; }
+.push-app { font-size: 11px; color: #6b7593; }
+.push-q { font-weight: 700; }
+.push-where { font-size: 12px; color: #a3122e; }
+.push-btns { display: flex; gap: 6px; margin-top: 6px; }
+.push-btns button { flex: 1; min-height: 36px; font: 600 14px system-ui, sans-serif; border-radius: 6px; border: 0; color: #fff; background: #a3122e; }
+.push-btns button[data-a=yes] { background: #2a6fd6; }
+.push-btns kbd { margin-left: 4px; font-size: 10px; opacity: 0.7; }
+body.touch .push-btns kbd { display: none; }
+@media (pointer: coarse) { .push-btns kbd { display: none; } }
+.push-life { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #f0a420; transform-origin: left; animation: push-life linear forwards; }
+@keyframes push-life { to { transform: scaleX(0); } }
+
+/* ---------- URL の扉(日曜) ---------- */
+.door-dlg h2 { margin-top: 0; }
+.door-row { display: grid; gap: 2px; margin: 0.5em 0; }
+.door-row span { font-size: 12px; color: var(--quiet); }
+.door-row code { font: 600 15px ui-monospace, Menlo, Consolas, monospace; font-variant-ligatures: none; word-break: break-all; padding: 6px 8px; background: #000; border: 1px solid var(--quiet); color: #fff; }
+.door-row.ref code { border-color: var(--green); color: #b8ffd2; }
+.door-dlg kbd { margin-right: 6px; }
+
+/* ---------- エンディング ---------- */
+.ending { text-align: center; }
+.ending .hero { image-rendering: pixelated; }
+.ending-list { list-style: none; padding: 0; margin: 1em auto; max-width: 30em; text-align: left; display: grid; gap: 4px; }
+.ending-list b { display: inline-block; width: 1.8em; color: var(--yellow); }

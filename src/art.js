@@ -674,6 +674,128 @@ export function hero(frame = 0) {
   return outline(G, '#0b0d18');
 }
 
+// ================= 火曜〜日曜のギミック =================
+
+// パスワードの鍵(1つめの要素)
+export function keyItem() {
+  const G = grid(32, 32);
+  shape(G, 5, 6, 18, 19, (x, y) => (x - 11.5) ** 2 + (y - 12.5) ** 2 <= 42 && (x - 11.5) ** 2 + (y - 12.5) ** 2 >= 10, (x, y) => (x + y < 22 ? C.gold1 : x + y < 30 ? C.gold2 : C.gold3));
+  rect(G, 16, 11, 27, 14, C.gold2);
+  rect(G, 16, 11, 27, 11, C.gold1);
+  rect(G, 22, 15, 23, 19, C.gold3);
+  rect(G, 26, 15, 27, 18, C.gold3);
+  return outline(G, C.ol);
+}
+
+// スマホ(2つめの要素)
+export function phoneItem() {
+  const G = grid(32, 32);
+  for (let y = 4; y <= 27; y++) for (let x = 9; x <= 22; x++) if (inRound(x, y, 9, 4, 22, 27, 2)) set(G, x, y, '#2a3044');
+  rect(G, 11, 7, 20, 23, C.scr2);
+  rect(G, 11, 7, 20, 9, C.scr3);
+  rect(G, 13, 13, 18, 16, C.lamp);
+  rect(G, 14, 14, 17, 15, '#c8ffd6');
+  rect(G, 14, 25, 17, 25, '#8d97ab');
+  return outline(G, C.ol);
+}
+
+// 認証ゲートの壁(赤い光の格子)。frame で明滅
+export function barrier(frame = 0) {
+  const G = grid(32, 32);
+  rect(G, 0, 0, 31, 31, frame ? '#5a0f24' : '#4a0b1e');
+  for (let y = 2; y < 32; y += 6) rect(G, 0, y, 31, y, frame ? '#ff3b5c' : '#e8344e');
+  for (let x = 4; x < 32; x += 8) rect(G, x, 0, x, 31, '#ff9fb2');
+  rect(G, 12, 10, 19, 19, '#1b0812');
+  rect(G, 14, 9, 17, 12, '#ff9fb2');
+  rect(G, 13, 13, 18, 18, '#ff3b5c');
+  rect(G, 15, 15, 16, 16, '#1b0812');
+  return G;
+}
+
+// 添付ファイルの箱(フォルダの形)
+export function fileBox(open = false) {
+  const G = grid(32, 32);
+  rect(G, 1, 6, 12, 9, open ? '#5d667f' : '#f0a420');
+  rect(G, 1, 9, 30, 30, open ? '#3a4158' : '#ffd23f');
+  rect(G, 1, 9, 30, 10, open ? '#5d667f' : '#fff4b0');
+  rect(G, 1, 28, 30, 30, open ? '#2a3044' : '#b8650f');
+  if (!open) {
+    rect(G, 9, 15, 22, 23, '#fff4b0');
+    rect(G, 11, 17, 20, 17, '#b8650f');
+    rect(G, 11, 19, 18, 19, '#b8650f');
+    rect(G, 11, 21, 19, 21, '#b8650f');
+  }
+  return outline(G, C.ol);
+}
+
+// ログイン端末(自分でログインする場所)
+export function loginPanel(on = true) {
+  const G = grid(32, 32);
+  rect(G, 6, 2, 25, 31, '#3a4158');
+  rect(G, 8, 4, 23, 17, on ? C.scr1 : '#0b1124');
+  if (on) {
+    rect(G, 10, 7, 21, 8, C.scr3);
+    rect(G, 10, 11, 21, 12, '#ffffff');
+    rect(G, 10, 14, 16, 15, C.lamp);
+  }
+  rect(G, 10, 21, 21, 23, '#8d97ab');
+  rect(G, 14, 26, 17, 29, on ? C.lamp : '#5d667f');
+  return outline(G, C.ol);
+}
+
+// バックアップ地点(保存のディスク)
+export function backupPoint(lit = false) {
+  const G = grid(32, 32);
+  rect(G, 6, 4, 25, 27, lit ? '#1a7fd6' : '#3a4158');
+  rect(G, 10, 4, 21, 12, '#c3cbe0');
+  rect(G, 17, 6, 19, 10, '#3a4158');
+  rect(G, 9, 16, 22, 25, '#eef2fa');
+  rect(G, 11, 18, 20, 18, '#8d97ab');
+  rect(G, 11, 21, 17, 21, '#8d97ab');
+  rect(G, 14, 28, 17, 31, lit ? C.lamp : '#5d667f');
+  return outline(G, C.ol);
+}
+
+// 黒幕が落とす釣り針
+export function hookShot() {
+  const G = grid(16, 16);
+  rect(G, 7, 0, 7, 8, '#c3cbe0');
+  for (const [x, y] of [[7, 9], [7, 10], [6, 11], [5, 11], [4, 10], [4, 9], [4, 8]]) set(G, x, y, '#ffffff');
+  set(G, 3, 8, '#ffffff');
+  set(G, 8, 3, C.red);
+  return outline(G, '#3a0a18');
+}
+
+// ボスのアングラー(全身。フードとマント、釣り竿)
+export function anglerBody(frame = 0) {
+  const G = grid(32, 32);
+  const sway = frame ? 1 : 0;
+  // マント
+  shape(G, 3, 12, 28, 31, (x, y) => Math.abs(x - 15.5) <= 6 + (y - 12) * 0.55, (x) => (x < 11 ? '#3a2d5c' : x < 21 ? '#2a2140' : '#1b1530'));
+  // フード
+  shape(G, 7, 1, 24, 17, (x, y) => ((x - 15.5) / 8.5) ** 2 + ((y - 9) / 8) ** 2 <= 1, (x, y) => ((x - 15.5) / 8.5 + (y - 9) / 8 < 0 ? '#4b3a78' : '#2f2550'));
+  shape(G, 10, 6, 21, 15, (x, y) => ((x - 15.5) / 4.8) ** 2 + ((y - 11) / 4.5) ** 2 <= 1, () => '#07050e');
+  rect(G, 12, 10, 13, 11, C.red);
+  rect(G, 18, 10, 19, 11, C.red);
+  set(G, 12, 10, C.redHi);
+  set(G, 18, 10, C.redHi);
+  // 釣り竿
+  for (let i = 0; i < 14; i++) set(G, 25 + Math.floor(i * 0.4) + sway, 20 - i, '#8a6a4a');
+  rect(G, 30, 2 + sway, 30, 10, '#c3cbe0');
+  return outline(G, '#05030a');
+}
+
+// 紙の手がかり(社内ルール・拡張子の見分け表・内線番号表)。color で区別
+export function paper(color = '#29adff') {
+  const G = grid(32, 32);
+  rect(G, 7, 4, 24, 28, '#eef2fa');
+  rect(G, 7, 4, 24, 8, color);
+  for (let y = 12; y <= 24; y += 3) rect(G, 10, y, y % 2 ? 21 : 18, y, '#8d97ab');
+  rect(G, 19, 22, 22, 25, color);
+  set(G, 24, 28, '#c3cbe0');
+  return outline(G, C.ol);
+}
+
 // すべての絵(形のチェック用)
 export function allArt() {
   return {
@@ -698,6 +820,15 @@ export function allArt() {
     sato: sato(),
     angler: angler(),
     mailer: mailer(0),
+    keyItem: keyItem(),
+    phoneItem: phoneItem(),
+    barrier: barrier(),
+    fileBox: fileBox(),
+    loginPanel: loginPanel(),
+    backupPoint: backupPoint(),
+    hookShot: hookShot(),
+    anglerBody: anglerBody(),
+    paper: paper(),
     hero0: hero(0),
     hero1: hero(1),
   };

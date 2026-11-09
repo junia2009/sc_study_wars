@@ -129,7 +129,7 @@ export function prompt(text) {
 }
 
 // ---------------- タイトル ----------------
-export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute, onMovie, name, onName }) {
+export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute, onMovie, name, onName, startLabel, days, onDay }) {
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   setKeys(null);
   show(
@@ -140,7 +140,17 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
       <p class="lead">情シス見習いのあなたと相棒 AI ガードで、経理部を詐欺から1週間守り抜け。</p>
       <label class="namefield"><span>あなたの名前</span><input id="title-name" maxlength="8" value="${esc(name || '')}" placeholder="ミナト" autocomplete="off"></label>
       <div class="actions">
-        <button class="primary" data-act="start" data-autofocus>月曜からはじめる</button>
+        <button class="primary" data-act="start" data-autofocus>${esc(startLabel || '月曜からはじめる')}</button>
+        ${
+          days && days.filter((d) => d.unlocked).length > 1
+            ? `<div class="day-select" role="group" aria-label="日を選ぶ">${days
+                .map(
+                  (d, i) =>
+                    `<button data-day="${i}" ${d.unlocked ? '' : 'disabled'} title="${esc(d.unlocked ? d.theme : 'まだ遊べない')}">${esc(d.day.slice(0, 1))}${d.cleared ? '<i>✓</i>' : ''}</button>`,
+                )
+                .join('')}</div>`
+            : ''
+        }
         <button data-act="cards">解説カード(${owned}/${CARDS.length})</button>
         ${onMovie ? '<button data-act="movie">オープニングを見る</button>' : ''}
         <button data-act="mute" class="ghost">${muted ? '音: オフ' : '音: オン'}</button>
@@ -169,6 +179,10 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
   on('[data-act=cards]', onCards);
   on('[data-act=mute]', onMute);
   if (onMovie) on('[data-act=movie]', onMovie);
+  on('[data-day]', (e) => {
+    saveName();
+    onDay?.(+e.currentTarget.dataset.day);
+  });
 }
 
 // ---------------- 一時停止 ----------------
@@ -429,16 +443,56 @@ function cands(str, cx, mode) {
 }
 
 function mailHTML(m, mode, cx) {
+  const kind = m.kind || 'mail';
+  const lines = (arr) => arr.map((l) => `<p>${cands(l, cx, mode)}</p>`).join('');
+  if (kind === 'chat') {
+    return `<div class="mock chat">
+      <div class="mail-bar">${esc(m.app || 'チャット')}</div>
+      <div class="chat-from">${cands(m.from, cx, mode)}</div>
+      <div class="chat-bubbles">${m.body.map((l) => `<p class="bubble">${cands(l, cx, mode)}</p>`).join('')}</div>
+    </div>`;
+  }
+  if (kind === 'call') {
+    return `<div class="mock call">
+      <div class="mail-bar">📞 ${esc(m.app || '着信')}</div>
+      <div class="call-from"><span>相手</span><b>${cands(m.from, cx, mode)}</b></div>
+      <div class="call-body">${lines(m.body)}</div>
+    </div>`;
+  }
+  if (kind === 'screen') {
+    return `<div class="mock screen">
+      <div class="mail-bar">⚠ ${esc(m.app || '画面')}</div>
+      <div class="screen-title">${cands(m.from, cx, mode)}</div>
+      <div class="screen-body">${lines(m.body)}</div>
+    </div>`;
+  }
   return `<div class="mock mail">
     <div class="mail-bar">受信トレイ</div>
     <div class="mail-row"><span>差出人</span><b>${cands(m.from, cx, mode)}</b></div>
     ${m.replyTo ? `<div class="mail-row"><span>返信先</span><b>${cands(m.replyTo, cx, mode)}</b></div>` : ''}
     <div class="mail-row"><span>件名</span><b>${cands(m.subject, cx, mode)}</b></div>
-    <div class="mail-body">${m.body.map((l) => `<p>${cands(l, cx, mode)}</p>`).join('')}</div>
+    <div class="mail-body">${lines(m.body)}</div>
   </div>`;
 }
 
-const SCENE_NAMES = { invoice: '請求書', bec: '振込先の変更', phish: 'パスワードの期限切れ' };
+const SCENE_NAMES = {
+  invoice: '請求書',
+  bec: '振込先の変更',
+  phish: 'パスワードの期限切れ',
+  ceo: '社長からのチャット',
+  mfaSetup: '多要素認証の設定',
+  attach: '添付ファイルつきの請求書',
+  reuse: '新しいパスワード',
+  vishing: '情シスを名乗る電話',
+  vpn: 'VPN 機器の更新',
+  takeover: '本物のアドレスからの振込先変更',
+  payment: '大口の支払いの確認',
+  ransom: 'ランサムウェアの画面',
+  support: '復旧業者を名乗る電話',
+  threat: '黒幕からの脅し',
+};
+const KIND_SELF = { mail: 'あなたあてのメール', chat: 'あなたあてのチャット', call: 'あなたへの電話', screen: '目の前の画面' };
+const KIND_NAME = { mail: 'メール', chat: 'チャット', call: '電話', screen: '画面' };
 export const sceneName = (id) => SCENE_NAMES[id] || id;
 
 const TIMEOUT = {
@@ -469,7 +523,7 @@ export function showScene(id, { clues, clock }, done) {
   const asker =
     sc.from === 'sato'
       ? `<div class="asker">${faceImg('sato', 48)}<p><b>佐藤さん</b>${esc(fill(sc.ask))}</p></div>`
-      : `<div class="asker self"><p><b>あなたあてのメール</b>自分で判断しよう</p></div>`;
+      : `<div class="asker self"><p><b>${KIND_SELF[sc.mock.kind || 'mail']}</b>自分で判断しよう</p></div>`;
 
   show(
     `<div class="panel scene" role="dialog" aria-label="判断シーン">
@@ -506,7 +560,7 @@ export function showScene(id, { clues, clock }, done) {
   // 初めての判断シーンでは、画面の見方を説明してから始める(制限時間はそのあと動き出す)
   const coachSteps = [
     { sel: '.asker', text: sc.from === 'sato' ? '佐藤さんから相談が届きました。これが「判断シーン」です' : '自分あてのメールが届きました。これが「判断シーン」です' },
-    { sel: '.mock', text: '届いたメールです。差出人・返信先・本文を、よく見ましょう' },
+    { sel: '.mock', text: `届いた${KIND_NAME[sc.mock.kind || 'mail']}です。相手・差出人・本文を、よく見ましょう` },
     { sel: '[data-act=notebook]', text: '「手帳と見比べる」で、集めた手がかり(本物の情報)と見比べられます。メールと違うところがあれば、怪しいサインです' },
     { sel: '.choices', text: 'どう対応するかを、4つから選びます。答えは「3つの基本動作」で考えると解けます(手帳の「きほん」でいつでも見返せます)' },
   ];
@@ -622,8 +676,8 @@ export function showScene(id, { clues, clock }, done) {
     const eye =
       total === 0
         ? falseN === 0
-          ? '怪しいところはなし。印を付けずに見送れた(本物のメール)'
-          : `本物のメールに印を ${falseN} 個付けた(疑いすぎ)`
+          ? '怪しいところはなし。印を付けずに見送れた(本物)'
+          : `本物に印を ${falseN} 個付けた(疑いすぎ)`
         : `怪しいところを ${found}/${total} 個見抜いた${falseN ? `・疑いすぎ ${falseN} 個` : ''}`;
     show(
       `<div class="panel outcome ${c.tier}" role="dialog">
@@ -647,7 +701,7 @@ export function showScene(id, { clues, clock }, done) {
       'is-dialog',
     );
     const ok = once(() =>
-      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN }),
+      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN, flag: c.flag }),
     );
     coach(
       'outcome',
@@ -705,7 +759,7 @@ export function showReport(game, { onRetry, onTitle }) {
 }
 
 // ---------------- 夕方の振り返り ----------------
-export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
+export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle, next, onNext }) {
   setKeys(null);
   const cards = sum.cards.map((id) => CARDS.find((c) => c.id === id));
   show(
@@ -723,7 +777,10 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
           ? `<p class="sortline">メール便の仕分け: 偽物を見抜いた <b>${sum.sort.caught}/${sum.sort.fakes}</b> ・ 本物を届けた <b>${sum.sort.delivered}/${sum.sort.reals}</b></p>`
           : ''
       }
-      <p class="sortline">メールの見抜き: 怪しいところを見抜いた <b>${sum.eye.found}/${sum.eye.total}</b> ・ 疑いすぎ <b>${sum.eye.falseN}</b></p>
+      ${sum.eye ? `<p class="sortline">見抜き: 怪しいところを見抜いた <b>${sum.eye.found}/${sum.eye.total}</b> ・ 疑いすぎ <b>${sum.eye.falseN}</b></p>` : ''}
+      ${sum.push ? `<p class="sortline">承認の通知: 身に覚えのない通知を拒否 <b>${sum.push.denied}</b> ・ うっかり承認 <b>${sum.push.approvedFake}</b></p>` : ''}
+      ${sum.files ? `<p class="sortline">添付ファイル: 安全なファイルを開けた <b>${sum.files.safe}</b> ・ マルウェアを開けた <b>${sum.files.malware}</b></p>` : ''}
+      ${sum.doors ? `<p class="sortline">URL の扉: 本物に入った <b>${sum.doors.right}</b> ・ 偽物に入った <b>${sum.doors.wrong}</b></p>` : ''}
       <p class="how">評価 ${sum.points}点 = 100 − 漏洩リスク(最大) − 業務の遅れ(最大)×0.7 + 最善の判断×2 + 見抜いたところ×2</p>
       <ul class="judges">${sum.judgments
         .map((j) => `<li class="${j.tier}"><span>${TIERS[j.tier].mark}</span>${esc(sceneName(j.id))}<em>${esc(TIERS[j.tier].label)}</em></li>`)
@@ -733,10 +790,11 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
       <ul class="mini-cards">${cards
         .map((c) => `<li><img src="${cardImg(c)}" alt="" width="32" height="32">${esc(c.name)}</li>`)
         .join('')}</ul>
-      <p class="next">火曜(上司・社長のなりすまし)は準備中です。</p>
+      ${next ? `<p class="next">${esc(next.text)}</p>` : ''}
       <div class="actions">
-        <button class="primary" data-act="cards" data-autofocus>カードを読む</button>
-        <button data-act="retry">月曜をもう一度</button>
+        ${next ? `<button class="primary" data-act="next" data-autofocus>${esc(next.label)}</button>` : ''}
+        <button ${next ? '' : 'class="primary" data-autofocus'} data-act="cards">カードを読む</button>
+        <button data-act="retry">${esc(day)}をもう一度</button>
         <button data-act="title">タイトルへ</button>
       </div>
     </div>`,
@@ -745,6 +803,114 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
   on('[data-act=cards]', onCards);
   on('[data-act=retry]', once(onRetry));
   on('[data-act=title]', once(onTitle));
+  if (next) on('[data-act=next]', once(onNext));
+}
+
+// ---------------- エンディング(日曜のあと) ----------------
+export function showEnding({ heroURL, owned, onCards, onTitle }) {
+  setKeys(null);
+  show(
+    `<div class="panel ending" role="dialog" aria-label="エンディング">
+      <img class="hero" src="${heroURL}" alt="" width="96" height="96">
+      <h2>一週間、おつかれさまでした</h2>
+      <p>${esc(fill('{name}とガードは、フィッシャーズから junia 商事を守り抜いた。'))}</p>
+      <ul class="ending-list">
+        <li><b>月</b>差出人とURLを、手元の本物と見比べる</li>
+        <li><b>火</b>偉い人の名前でも、ルールを盾に断っていい</li>
+        <li><b>水</b>ファイル名は、いちばん右まで読む</li>
+        <li><b>木</b>電話はかけ直す。身に覚えのない承認は押さない</li>
+        <li><b>金</b>アドレスが本物でも、振込先の変更は電話で確かめる</li>
+        <li><b>土</b>切り離して、電源は切らずに、すぐ報告</li>
+        <li><b>日</b>迷ったら相談、やったら報告</li>
+      </ul>
+      <p class="fine">解説カード ${owned}/${CARDS.length} 枚。朝礼や注意喚起に、そのまま使ってください。</p>
+      <div class="actions">
+        <button class="primary" data-act="cards" data-autofocus>カードを読む</button>
+        <button data-act="title">タイトルへ</button>
+      </div>
+    </div>`,
+    'is-dialog',
+  );
+  on('[data-act=cards]', onCards);
+  on('[data-act=title]', once(onTitle));
+}
+
+// ---------------- 承認の通知(木曜。プレイ中に画面の上に出る) ----------------
+const pushEls = new Map();
+export function showPush(ps, answer) {
+  let box = $('#pushes');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'pushes';
+    $('#stage-wrap').append(box);
+  }
+  const el = document.createElement('div');
+  el.className = 'push';
+  el.innerHTML = `<p class="push-app">📱 ${esc(ps.app)}</p>
+    <p class="push-q">ログインを承認しますか?</p>
+    <p class="push-where">${esc(ps.where)}</p>
+    <div class="push-btns"><button type="button" data-a="no">拒否<kbd>N</kbd></button><button type="button" data-a="yes">承認<kbd>Y</kbd></button></div>
+    <i class="push-life" style="animation-duration:${ps.life}s"></i>`;
+  const go = (v) => answer(v);
+  el.querySelector('[data-a=yes]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    go(true);
+  });
+  el.querySelector('[data-a=no]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    go(false);
+  });
+  // ボタンの上で指を置いても、ゲームのタッチ操作にならないように
+  for (const t of ['pointerdown', 'touchstart']) el.addEventListener(t, (e) => e.stopPropagation(), { passive: true });
+  box.append(el);
+  pushEls.set(ps.id, { el, go });
+}
+export function hidePush(ps) {
+  const it = pushEls.get(ps.id);
+  if (!it) return;
+  pushEls.delete(ps.id);
+  it.el.classList.add('gone');
+  setTimeout(() => it.el.remove(), 250);
+}
+export function clearPushes() {
+  for (const it of pushEls.values()) it.el.remove();
+  pushEls.clear();
+}
+// キーボード: Y 承認 / N 拒否(いちばん新しい通知に)
+addEventListener('keydown', (e) => {
+  if (!pushEls.size || !overlay.hidden) return;
+  const last = [...pushEls.values()].pop();
+  if (e.code === 'KeyY') last.go(true);
+  if (e.code === 'KeyN') last.go(false);
+});
+
+// ---------------- URL の扉(日曜) ----------------
+export function showDoor(dr, clues, done) {
+  const fin = once(done);
+  const bm = CLUES.bookmark.lines[1];
+  show(
+    `<div class="panel door-dlg" role="dialog" aria-label="URL の扉">
+      <h2>この入口に入りますか?</h2>
+      <p class="door-row"><span>扉の URL</span><code>${esc(dr.url)}</code></p>
+      ${
+        clues.bookmark
+          ? `<p class="door-row ref"><span>手帳のブックマーク</span><code>${esc(bm)}</code></p>`
+          : '<p class="door-row ref"><span>手帳</span><em>公式ブックマークを持っていない……</em></p>'
+      }
+      <p class="fine">1文字ずつ見比べよう。偽物に入ると、情報を盗まれて押し戻される。</p>
+      <div class="actions">
+        <button class="primary" data-act="enter" data-autofocus><kbd>1</kbd>入る</button>
+        <button data-act="back"><kbd>2</kbd>やめる</button>
+      </div>
+    </div>`,
+    'is-dialog',
+  );
+  on('[data-act=enter]', () => fin(true));
+  on('[data-act=back]', () => fin(false));
+  setKeys((e) => {
+    if (e.key === '1') fin(true);
+    if (e.key === '2' || e.code === 'Escape') fin(false);
+  });
 }
 
 // ---------------- 解説カード ----------------

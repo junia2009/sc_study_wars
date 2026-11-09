@@ -6,7 +6,8 @@ import { Game, VIEW_W, VIEW_H } from './game.js';
 import { RES } from './sprites.js';
 import { STAGE1 } from '../data/stage1.js';
 import { SCENES } from '../data/scenes.js';
-import { MONDAY, GRADES } from '../data/story.js';
+import { MONDAY, GRADES, CLUES } from '../data/story.js';
+import { LATER_DAYS } from '../data/days.js';
 import * as UI from './ui.js';
 import { Movie } from './movie.js';
 
@@ -19,7 +20,20 @@ canvas.width = VIEW_W * RES;
 canvas.height = VIEW_H * RES;
 
 const S = buildSprites();
-const CARD_SPRITE = { pass: S.pass[0].r, shield: S.shield, phish: S.phish[0].r, door: S.door, bookmark: S.bookmark, ledger: S.ledger };
+const CARD_SPRITE = {
+  pass: S.pass[0].r,
+  shield: S.shield,
+  phish: S.phish[0].r,
+  door: S.door,
+  bookmark: S.bookmark,
+  ledger: S.ledger,
+  rules: S.rules,
+  naisen: S.naisen,
+  soft: S.soft[0].r,
+  mail: S.mail[0].r,
+  reboot: S.reboot,
+  guard: S.guard.stand[0].r,
+};
 const cardImgCache = {};
 const cardImg = (c) => (cardImgCache[c.id] ??= spriteURL(CARD_SPRITE[c.sprite] || S.crystal[0], 2));
 
@@ -117,7 +131,15 @@ visualViewport?.addEventListener('resize', fit);
 
 // ---- ゲーム ----
 let mode = 'title'; // title | play | dialog | end
-const DAY = MONDAY;
+// 1週間: 月曜(story.js / stage1.js)+ 火曜〜日曜(days.js)
+const DAYS = [{ ...MONDAY, stage: STAGE1, cards: ['bec', 'phishing', 'verify'] }, ...LATER_DAYS];
+for (const d of LATER_DAYS) Object.assign(SCENES, d.sceneData);
+let dayIndex = 0;
+let DAY = DAYS[0];
+// 遊べる日(クリアした日の次の日まで)と、クリアした日
+let progress = store.get('scsw.progress', { unlocked: 0, cleared: [] });
+// 遊び方の説明を、その日にもう見たか(月曜は以前の保存 seen.learned も見る)
+const learnedDay = () => !!seen[`learned_${DAY.id}`] || (DAY.id === 'monday' && !!seen.learned);
 game = new Game(STAGE1, DAY, S, {
   hud: (gm) => UI.updateHud(gm),
   banner: (text, tone) => UI.banner(text, tone),
@@ -128,25 +150,32 @@ game = new Game(STAGE1, DAY, S, {
     const lines = {
       bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます(B ボタンで見られます)' }],
       ledger: [{ who: 'guard', text: '連絡先台帳を手に入れました! 山田さんの本当の連絡先が載っています' }],
-    }[kind];
-    if (seen.learned) {
+    }[kind] || [{ who: 'guard', text: `${CLUES[kind].name}を手に入れました! 手帳に記録しておきます。${CLUES[kind].hint}` }];
+    if (learnedDay()) {
       // 遊び方を覚えた人には、止めずにひとことで
-      UI.say({ who: 'guard', text: kind === 'bookmark' ? '公式ブックマークを手に入れた!' : '連絡先台帳を手に入れた!' });
+      UI.say({ who: 'guard', text: `${CLUES[kind].name}を手に入れた!` });
       return;
     }
     pause();
     UI.talk(lines, resume);
   },
   // 遊び方を一度覚えたか(その日を最後まで遊んだら覚えたことにして、2回目からは遊び方の説明を出さない)
-  learned: () => !!seen.learned,
-  learn: () => {
-    seen.learned = true;
-    store.set('scsw.seen', seen);
-  },
+  learned: learnedDay,
   // ガードの説明(チュートリアル): ゲームを止めて会話で説明する
   lesson: (lines) => {
     pause();
     UI.talk(lines, resume);
+  },
+  // 承認の通知(木曜)
+  push: (ps) => UI.showPush(ps, (approve) => game.answerPush(ps, approve)),
+  pushDone: (ps) => UI.hidePush(ps),
+  // URL の扉(日曜)
+  door: (dr) => {
+    pause();
+    UI.showDoor(dr, game.clues, (enter) => {
+      resume();
+      game.enterDoor(dr, enter);
+    });
   },
   // 手帳(B ボタン)
   notebook: () => {
@@ -170,16 +199,19 @@ game = new Game(STAGE1, DAY, S, {
     mode = 'end';
     setGameInput(false);
     UI.prompt(null);
+    UI.clearPushes();
     UI.hideOverlay();
     setTimeout(() => UI.showReport(gm, { onRetry: startDay, onTitle: title }), 500);
   },
   // ログアウトゲートに着いた: 黒幕 → 振り返り
   goal: (gm) => {
-    seen.learned = true;
+    seen[`learned_${DAY.id}`] = true;
+    if (DAY.id === 'monday') seen.learned = true;
     store.set('scsw.seen', seen);
     mode = 'end';
     setGameInput(false);
     UI.prompt(null);
+    UI.clearPushes();
     gm.clock = DAY.clocks.boss;
     UI.updateHud(gm);
     UI.talk(DAY.boss, () => review(gm));
@@ -190,12 +222,22 @@ function review(gm) {
   const sum = gm.summary(GRADES);
   owned = [...new Set([...owned, ...sum.cards])];
   store.set('scsw.cards', owned);
+  // クリアした日を記録して、次の日を遊べるようにする
+  if (!progress.cleared.includes(DAY.id)) progress.cleared.push(DAY.id);
+  progress.unlocked = Math.max(progress.unlocked, Math.min(DAYS.length - 1, dayIndex + 1));
+  store.set('scsw.progress', progress);
+  const nextDay = DAYS[dayIndex + 1];
+  const last = !nextDay;
   const opts = {
     day: DAY.day,
     cardImg,
     onCards: () => cards(() => UI.showReview(sum, opts)),
     onRetry: startDay,
     onTitle: title,
+    next: last
+      ? { label: 'エンディングへ', text: '一週間、守り抜いた!' }
+      : { label: `${nextDay.day}へ`, text: `次は${nextDay.day}: ${nextDay.theme}` },
+    onNext: last ? ending : () => playDay(dayIndex + 1),
   };
   UI.talk(DAY.outro, () => UI.showReview(sum, opts));
 }
@@ -227,18 +269,40 @@ function resume() {
   clearPressed();
   canvas.focus?.();
 }
+// 日を選んで始める
+function playDay(i) {
+  dayIndex = i;
+  DAY = DAYS[i];
+  game.stage = DAY.stage;
+  game.day = DAY;
+  startDay();
+}
+function ending() {
+  mode = 'end';
+  UI.showEnding({ heroURL: spriteURL(S.guard.stand[0].r, 3), owned: owned.length, onCards: () => cards(ending), onTitle: title });
+}
 // 1日を最初から: 朝の会話 → プレイ
 function startDay() {
   game.reset();
   UI.prompt(null);
+  UI.clearPushes();
   pause();
   UI.talk(DAY.intro, resume);
 }
 function title() {
   mode = 'title';
   setGameInput(false);
+  UI.clearPushes();
+  UI.prompt(null);
   game.reset();
+  const cont = progress.unlocked;
   UI.showTitle({
+    startLabel: cont > 0 ? `つづきから(${DAYS[cont].day})` : '月曜からはじめる',
+    days: DAYS.map((d, i) => ({ day: d.day, theme: d.theme || '取引先のなりすまし / フィッシング', unlocked: i <= progress.unlocked, cleared: progress.cleared.includes(d.id) })),
+    onDay: (i) => {
+      initAudio();
+      playDay(i);
+    },
     title: GAME_TITLE,
     subtitle: GAME_SUBTITLE,
     owned: owned.length,
@@ -252,8 +316,8 @@ function title() {
     onStart: () => {
       initAudio();
       // 初めての人には、まずオープニングムービーを見せる
-      if (!seen.opening) playOpening(startDay);
-      else startDay();
+      if (!seen.opening) playOpening(() => playDay(cont));
+      else playDay(cont);
     },
     onCards: () => cards(title),
     onMute: () => {
@@ -339,7 +403,8 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // 判断シーンの中身が足りているかを、開発中に確かめる
-for (const id of DAY.scenes) if (!SCENES[id]) console.warn(`判断シーン ${id} がない`);
+for (const d of DAYS) for (const id of d.scenes) if (!SCENES[id]) console.warn(`判断シーン ${id} がない`);
+window.__days = { DAYS, playDay };
 
 // PWA
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
