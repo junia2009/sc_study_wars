@@ -129,7 +129,7 @@ export function prompt(text) {
 }
 
 // ---------------- タイトル ----------------
-export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute, onMovie }) {
+export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, muted, onMute, onMovie, name, onName }) {
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   setKeys(null);
   show(
@@ -138,6 +138,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
       <h1>${esc(title)}</h1>
       <p class="sub">〜 ${esc(subtitle)} 〜</p>
       <p class="lead">情シス見習いのあなたと相棒 AI ガードで、経理部を詐欺から1週間守り抜け。</p>
+      <label class="namefield"><span>あなたの名前</span><input id="title-name" maxlength="8" value="${esc(name || '')}" placeholder="ミナト" autocomplete="off"></label>
       <div class="actions">
         <button class="primary" data-act="start" data-autofocus>月曜からはじめる</button>
         <button data-act="cards">解説カード(${owned}/${CARDS.length})</button>
@@ -150,34 +151,24 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
     </div>`,
     'is-title',
   );
-  on('[data-act=start]', onStart);
+  // 名前は入力したそばから保存する(はじめる・カード・音のどれを押しても消えないように)
+  const input = $('#title-name');
+  const saveName = () => onName?.(input.value.trim());
+  input.addEventListener('input', saveName);
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      saveName();
+      onStart();
+    }
+  });
+  on('[data-act=start]', () => {
+    saveName();
+    onStart();
+  });
   on('[data-act=cards]', onCards);
   on('[data-act=mute]', onMute);
   if (onMovie) on('[data-act=movie]', onMovie);
-}
-
-// ---------------- 名前を決める ----------------
-export function askName(initial, done) {
-  setKeys(null);
-  show(
-    `<form class="panel namebox" role="dialog" aria-label="名前を決める">
-      ${faceImg('kuroda', 64)}
-      <p>黒田先輩「……で、名前なんだっけ?」</p>
-      <input id="name-input" maxlength="8" value="${esc(initial)}" autocomplete="off" aria-label="あなたの名前" data-autofocus>
-      <div class="actions"><button class="primary" type="submit">これでいく</button></div>
-    </form>`,
-    'is-dialog',
-  );
-  const input = $('#name-input');
-  input.focus();
-  input.select();
-  overlay.querySelector('form').addEventListener(
-    'submit',
-    once((e) => {
-      e.preventDefault();
-      done(input.value.trim() || 'ミナト');
-    }),
-  );
 }
 
 // ---------------- 一時停止 ----------------

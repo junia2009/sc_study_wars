@@ -80,25 +80,31 @@ export const MONDAY = {
   // ステージのところどころで出るガードの説明(地図の i の左から)
   //   talk: ゲームを止めて会話で説明する(チュートリアル) / say: 止めずにひとこと
   //   point: 会話のあいだ光らせる画面の部分
+  //   help: 遊び方を教えるだけの説明。一度その日を最後まで遊んだら(ゲートに着いたら)、2回目からは出さない
+  //         (release の敵はそのまま動き出す)。物語の会話には付けない
   //   {move} {jump} {note} {pause} は、タッチ端末かどうかで操作の書き方が変わる
   hints: [
     {
+      help: true,
       talk: [
         { who: 'guard', text: 'ここは社内ネットワークの入口です。ガードは、{name}さんの操作で動きます' },
         { who: 'guard', text: '{move}で左右に動きます。まずは右へ進んでみてください!' },
       ],
     },
     {
+      help: true,
       talk: [
         { who: 'guard', text: '段差です。{jump}でジャンプ! 長く押すほど高く跳べます' },
       ],
     },
     {
+      help: true,
       talk: [
         { who: 'guard', text: '光る結晶は「業務データ」です。拾うと仕事が片づいて、「業務の遅れ」が少し減ります', point: '#hud .gauge.delay' },
       ],
     },
     {
+      help: true,
       // release: この説明が終わるまで、その組の敵はその場で待つ(説明より先に倒されないように)
       release: 'tutorial',
       talk: [
@@ -107,16 +113,19 @@ export const MONDAY = {
       ],
     },
     {
+      help: true,
       talk: [
         { who: 'guard', text: '「!」のブロックは、下から頭で叩くと業務データが出てきます' },
       ],
     },
     {
+      help: true,
       talk: [
         { who: 'guard', text: '穴の下は「本番環境」です。うっかり落ちると大事故……漏洩リスクがたまるので、跳び越えましょう' },
       ],
     },
     {
+      help: true,
       talk: [
         { who: 'guard', text: '練習はここまでです。最後に、画面の上の見方を説明しますね' },
         { who: 'guard', text: '左上は時刻です。相談やメールが届くたびに進みます', point: '#hud-clock' },
@@ -126,9 +135,10 @@ export const MONDAY = {
         { who: 'guard', text: '一時停止は{pause}です。では、いよいよ本番! 社内ポータルへ行きましょう' },
       ],
     },
-    { say: { who: 'guard', text: 'ここは社内ポータルです。公式ブックマークを探しましょう!' } },
-    { say: { who: 'guard', text: 'この先は経理部のファイルサーバーです。連絡先台帳は、階段の上にあるみたいです' } },
+    { help: true, say: { who: 'guard', text: 'ここは社内ポータルです。公式ブックマークを探しましょう!' } },
+    { help: true, say: { who: 'guard', text: 'この先は経理部のファイルサーバーです。連絡先台帳は、階段の上にあるみたいです' } },
     {
+      help: true,
       release: 'sort',
       talk: [
         { who: 'guard', text: '経理部の受信箱に向かう「メール便」が来ます! 本物と偽物が、同じ姿で混ざっています' },
@@ -139,6 +149,7 @@ export const MONDAY = {
     },
     { sortReport: true },
     {
+      help: true,
       talk: [
         { who: 'guard', text: 'あの「!」の付いた端末は、相談やメールが届いた合図です' },
         { who: 'guard', text: '前を通ると「判断シーン」が始まります。集めた手がかりを使って、どう対応するかを決めましょう' },
@@ -146,6 +157,7 @@ export const MONDAY = {
     },
     { say: { who: 'guard', text: 'もうすぐ夕方です。出口(ログアウトゲート)まであと少し!' } },
     {
+      help: true,
       talk: [
         { who: 'guard', text: 'あれが出口のログアウトゲートです。入ると、今日の仕事はおしまいです' },
       ],
@@ -155,12 +167,13 @@ export const MONDAY = {
   //   talk: ゲームを止めて説明 / say: 止めずにひとこと
   firstSight: {
     pass: {
+      help: true,
       talk: [
         { who: 'guard', text: '新しい敵です! あれは「Password1!」。社内のルールは満たしているけど、推測されやすいパスワードの化身です' },
         { who: 'guard', text: '硬そうな鎧ですが、ひと踏みで割れます。中身が逃げ回るので、もう一度踏んで撃退しましょう' },
       ],
     },
-    soft: { say: { who: 'guard', text: '鎧が割れて、中身が出てきました! 逃げ足が速いので気をつけて' } },
+    soft: { help: true, say: { who: 'guard', text: '鎧が割れて、中身が出てきました! 逃げ足が速いので気をつけて' } },
   },
 };
 

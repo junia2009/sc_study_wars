@@ -567,23 +567,6 @@ button:disabled { opacity: 0.6; cursor: default; }
 body.portrait .talk { min-height: 168px; }
 body.portrait .talk-text { font-size: 16px; }
 
-/* ---------- 名前 ---------- */
-.namebox { text-align: center; }
-.namebox .face { image-rendering: pixelated; border-radius: 8px; background: #141c43; }
-.namebox input {
-  width: 100%;
-  margin-top: 8px;
-  padding: 0.6em 0.8em;
-  font: inherit;
-  font-size: 20px;
-  text-align: center;
-  color: var(--ink);
-  background: #000;
-  border: 2px solid var(--blue);
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 /* ---------- 手帳 ---------- */
 .notebook h2 { font-size: 22px; }
 .notebook .lead { font-size: 13px; color: var(--quiet); }
@@ -758,3 +741,20 @@ span.cand.plain { background: none; }
 .evidence summary span.cand { font-size: 12px; }
 .outcome .eye { margin: 8px 0 0; padding: 6px 10px; font-size: 14px; background: #000; border-radius: 6px; }
 .outcome .eye.perfect { color: var(--green); }
+
+/* タイトルの名前の欄 */
+.namefield { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 12px auto 0; max-width: 340px; font-size: 14px; color: var(--quiet); }
+.namefield input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45em 0.7em;
+  font: inherit;
+  font-size: 17px;
+  color: var(--ink);
+  text-align: center;
+  background: #000;
+  border: 2px solid var(--line);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.namefield input:focus { border-color: var(--blue); outline: none; }

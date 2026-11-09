@@ -456,7 +456,8 @@ export class Game {
       // 初めて画面に映った種類の敵なら、ガードが説明する
       if (!this.sighted[e.kind] && e.x < this.camX + this.vw - 8 && e.x > this.camX) {
         this.sighted[e.kind] = true;
-        const first = this.day.firstSight?.[e.kind];
+        let first = this.day.firstSight?.[e.kind];
+        if (first?.help && this.hooks.learned?.()) first = null;
         if (first?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(first.talk);
@@ -547,11 +548,20 @@ export class Game {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
         if (h.line?.release) this.released[h.line.release] = true;
+        const learned = this.hooks.learned?.();
         if (h.line?.sortReport) {
+          // 結果のお知らせ。遊び方を覚えた人には、止めずにひとことで
+          const line = { who: 'guard', text: this.sortReportText() };
+          if (learned) {
+            this.hooks.say?.(line);
+            continue;
+          }
           p.vx = 0;
-          this.hooks.lesson?.([{ who: 'guard', text: this.sortReportText() }]);
+          this.hooks.lesson?.([line]);
           return;
         }
+        // 遊び方の説明は、一度覚えたら出さない
+        if (h.line?.help && learned) continue;
         if (h.line?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(h.line.talk);

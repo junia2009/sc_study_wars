@@ -129,8 +129,19 @@ game = new Game(STAGE1, DAY, S, {
       bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます(B ボタンで見られます)' }],
       ledger: [{ who: 'guard', text: '連絡先台帳を手に入れました! 山田さんの本当の連絡先が載っています' }],
     }[kind];
+    if (seen.learned) {
+      // 遊び方を覚えた人には、止めずにひとことで
+      UI.say({ who: 'guard', text: kind === 'bookmark' ? '公式ブックマークを手に入れた!' : '連絡先台帳を手に入れた!' });
+      return;
+    }
     pause();
     UI.talk(lines, resume);
+  },
+  // 遊び方を一度覚えたか(その日を最後まで遊んだら覚えたことにして、2回目からは遊び方の説明を出さない)
+  learned: () => !!seen.learned,
+  learn: () => {
+    seen.learned = true;
+    store.set('scsw.seen', seen);
   },
   // ガードの説明(チュートリアル): ゲームを止めて会話で説明する
   lesson: (lines) => {
@@ -164,6 +175,8 @@ game = new Game(STAGE1, DAY, S, {
   },
   // ログアウトゲートに着いた: 黒幕 → 振り返り
   goal: (gm) => {
+    seen.learned = true;
+    store.set('scsw.seen', seen);
     mode = 'end';
     setGameInput(false);
     UI.prompt(null);
@@ -231,15 +244,16 @@ function title() {
     owned: owned.length,
     heroURL: spriteURL(S.guard.stand[0].r, 4),
     muted: isMuted(),
+    name: playerName,
+    onName: (name) => {
+      playerName = name || 'ミナト';
+      store.set('scsw.name', playerName);
+    },
     onStart: () => {
       initAudio();
-      UI.askName(playerName, (name) => {
-        playerName = name;
-        store.set('scsw.name', name);
-        // 初めての人には、まずオープニングムービーを見せる
-        if (!seen.opening) playOpening(startDay);
-        else startDay();
-      });
+      // 初めての人には、まずオープニングムービーを見せる
+      if (!seen.opening) playOpening(startDay);
+      else startDay();
     },
     onCards: () => cards(title),
     onMute: () => {
