@@ -350,6 +350,20 @@ button:disabled { opacity: 0.6; cursor: default; }
 .title .tip { margin-top: 16px; font-size: 13px; color: var(--quiet); }
 .title .tip span { margin-right: 0.6em; padding: 0 0.4em; color: #000; background: var(--green); }
 .title .keys, .title .fine { font-size: 12px; color: var(--quiet); }
+.title .sub-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; width: 100%; }
+.title .sub-actions button { min-width: 0; padding: 0.45em 0.2em; font-size: 14px; white-space: nowrap; }
+@media (pointer: coarse) { .title .keys { display: none; } }
+/* 縦長のスマホ: タイトルが1画面に収まるように詰める */
+@media (orientation: portrait) {
+  .title { padding: 14px 16px; }
+  .title .hero { width: 80px; height: 80px; }
+  .title h1 { font-size: 30px; margin: 4px 0 0; }
+  .title .sub { margin: 4px 0 0; font-size: 14px; }
+  .title .namefield { margin-top: 10px; }
+  .title .actions { gap: 8px; margin-top: 10px; }
+  .title .tip { margin: 10px 0 0; font-size: 12px; }
+  .title .fine { margin: 6px 0 0; }
+}
 @keyframes bob { 50% { transform: translateY(-4px); } }
 
 /* 判断シーン */
@@ -825,3 +839,16 @@ body.touch .push-btns kbd { display: none; }
 .ending .hero { image-rendering: pixelated; }
 .ending-list { list-style: none; padding: 0; margin: 1em auto; max-width: 30em; text-align: left; display: grid; gap: 4px; }
 .ending-list b { display: inline-block; width: 1.8em; color: var(--yellow); }
+
+/* 背の低い横向き(スマホを横にしたとき): タイトルを左右2列にして、1画面に収める */
+@media (orientation: landscape) and (max-height: 520px) {
+  .title { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; align-items: center; width: min(760px, 100%); padding: 12px 18px; }
+  .title .hero { width: 72px; height: 72px; }
+  .title h1 { font-size: 28px; margin: 4px 0 0; }
+  .title .sub { margin: 4px 0 0; font-size: 13px; }
+  .title .namefield { margin-top: 0; }
+  .title .actions { gap: 6px; margin-top: 8px; }
+  .title .actions button { padding-top: 0.35em; padding-bottom: 0.35em; }
+  .title .tip { display: none; }
+  .title .fine { margin: 6px 0 0; }
+}

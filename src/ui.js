@@ -134,10 +134,12 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
   setKeys(null);
   show(
     `<div class="panel title">
+      <div class="title-brand">
       <img class="hero" src="${heroURL}" alt="" width="128" height="128">
       <h1>${esc(title)}</h1>
       <p class="sub">〜 ${esc(subtitle)} 〜</p>
-      <p class="lead">情シス見習いのあなたと相棒 AI ガードで、経理部を詐欺から1週間守り抜け。</p>
+      </div>
+      <div class="title-menu">
       <label class="namefield"><span>あなたの名前</span><input id="title-name" maxlength="8" value="${esc(name || '')}" placeholder="ミナト" autocomplete="off"></label>
       <div class="actions">
         <button class="primary" data-act="start" data-autofocus>${esc(startLabel || '月曜からはじめる')}</button>
@@ -151,13 +153,16 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
                 .join('')}</div>`
             : ''
         }
-        <button data-act="cards">解説カード(${owned}/${CARDS.length})</button>
-        ${onMovie ? '<button data-act="movie">オープニングを見る</button>' : ''}
-        <button data-act="mute" class="ghost">${muted ? '音: オフ' : '音: オン'}</button>
+        <div class="sub-actions">
+          <button data-act="cards">カード ${owned}/${CARDS.length}</button>
+          ${onMovie ? '<button data-act="movie">ムービー</button>' : ''}
+          <button data-act="mute" class="ghost">${muted ? '音 オフ' : '音 オン'}</button>
+        </div>
       </div>
       <p class="tip"><span>Tips</span>${esc(tip)}</p>
-      <p class="keys">PC: ← → 移動 / Z・スペース ジャンプ / X 手帳 / Esc 一時停止<br>スマホ: 縦でも横でも。左右のキーは、指を滑らせて切り替えられる</p>
-      <p class="fine">登場する会社・人物・ドメインはすべて架空です。</p>
+      <p class="keys">← → 移動 / Z・スペース ジャンプ / X 手帳 / Esc 一時停止</p>
+      <p class="fine">会社・人物・ドメインはすべて架空です。</p>
+      </div>
     </div>`,
     'is-title',
   );
