@@ -722,3 +722,6 @@ body.portrait .movie-text { font-size: 17px; }
 .basics .c-leak { color: var(--orange); font-weight: normal; }
 .basics .c-delay { color: #b18cff; font-weight: normal; }
 .review .how { font-size: 12px; color: var(--quiet); margin: 2px 0 6px; }
+
+.review .sortline { font-size: 14px; margin: 4px 0; }
+.review .sortline b { color: var(--yellow); font-weight: normal; }

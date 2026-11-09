@@ -54,7 +54,7 @@ export class Game {
     this.floats = [];
     this.terms = [];
     this.hints = [];
-    this.tutorialGo = false; // 練習区間の敵が動いてよいか(敵の説明のあと)
+    this.released = {}; // 説明が終わって動いてよくなった敵の組(tutorial / sort)
     this.sighted = {}; // 初めて画面に映った敵の種類
     this.clueItems = [];
     this.goal = null;
@@ -62,6 +62,7 @@ export class Game {
     let start = { x: 32, y: 0 };
     let ti = 0;
     let hi = 0;
+    const mails = [];
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const ch = this.grid[y][x];
@@ -72,6 +73,7 @@ export class Game {
           case 'P': start = { x: px + 3, y: py + 2 }; break;
           case 'e': this.enemies.push(this.enemy('phish', px + 2, py + 6)); break;
           case 'p': this.enemies.push(this.enemy('pass', px + 2, py + 6)); break;
+          case 'M': mails.push(this.enemy('mail', px + 2, py + 6)); break;
           case 'o': this.coins.push({ x: px + 4, y: py + 4, w: 8, h: 8 }); break;
           case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: this.day.scenes[ti++], used: false }); break;
           case 'i': this.hints.push({ x: px, line: this.day.hints[hi++], shown: false }); break;
@@ -83,6 +85,25 @@ export class Game {
         if (clear) this.grid[y][x] = '.';
       }
     }
+    // メール便: 半分を偽物にする(どれが偽物かは毎回変わる)。偽物のドメインは本物の1文字違い
+    const fakes = ['sanple-bussan', 'samp1e-bussan', 'sample-busan', 'sample-bussam', 'sarnple-bussan'];
+    for (let i = fakes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [fakes[i], fakes[j]] = [fakes[j], fakes[i]];
+    }
+    const order = mails.map((_, i) => i).sort(() => Math.random() - 0.5);
+    const fakeSet = new Set(order.slice(0, Math.ceil(mails.length / 2)));
+    mails.forEach((m, i) => {
+      m.real = !fakeSet.has(i);
+      m.domain = m.real ? 'sample-bussan' : fakes.pop() || 'sanple-bussan';
+      m.speed = 18;
+      m.gate = 'sort';
+      this.enemies.push(m);
+    });
+    this.sort = { fakes: mails.filter((m) => !m.real).length, reals: mails.filter((m) => m.real).length, caught: 0, delivered: 0, passed: 0, stomped: 0, missed: 0 };
+    // 練習区間の敵は、敵の説明が終わるまで待つ
+    for (const e of this.enemies) if (e.x < (st.tutorialEnd || 0) * T) e.gate = 'tutorial';
+
     this.p = { ...body(start.x, start.y, 10, 14), face: 1, coyote: 0, buffer: 0, inv: 0, jumping: false, anim: 0 };
     this.safe = { x: start.x, y: start.y };
     this.clues = {}; // 手に入れた手がかり(bookmark / ledger)
@@ -209,7 +230,7 @@ export class Game {
     this.bumps.push({ cx, cy, life: 0.15 });
     // 叩いたブロックの上にいた敵は倒れる
     for (const e of this.enemies) {
-      if (!e.dead && Math.abs(e.x + e.w / 2 - (cx * T + 8)) < 12 && Math.abs(e.y + e.h - cy * T) < 3) {
+      if (!e.dead && e.kind !== 'mail' && Math.abs(e.x + e.w / 2 - (cx * T + 8)) < 12 && Math.abs(e.y + e.h - cy * T) < 3) {
         this.defeat(e);
       }
     }
@@ -271,6 +292,68 @@ export class Game {
     sfx.stomp();
     this.burst(e.x + 6, e.y + 5, 10, e.kind === 'phish' ? '#fff1e8' : '#ff77a8');
     this.floats.push({ x: e.x + 6, y: e.y - 4, text: '撃退!', life: 0.7 });
+  }
+
+  // メール便を仕分けた。stomp: 踏んで追い返した / そうでなければ受け止めた
+  sortMail(e, stomp) {
+    e.dead = true;
+    const fx = e.x + 6;
+    const fy = e.y - 18;
+    if (stomp && !e.real) {
+      this.sort.caught++;
+      this.score += 100;
+      sfx.good();
+      this.burst(fx, e.y + 5, 12, '#ffd23f');
+      this.floats.push({ x: fx, y: fy, text: '見抜いた!', life: 1, coin: true });
+    } else if (stomp && e.real) {
+      this.sort.stomped++;
+      sfx.bad();
+      this.burst(fx, e.y + 5, 8, '#b18cff');
+      this.floats.push({ x: fx, y: fy, text: '本物だった…', life: 1.2 });
+      this.addDelay(8, 'stompReal');
+    } else if (e.real) {
+      this.sort.delivered++;
+      this.score += 50;
+      sfx.coin();
+      this.burst(fx, e.y + 5, 10, '#7fe3ff');
+      this.floats.push({ x: fx, y: fy, text: '届けた!', life: 1, coin: true });
+      this.delay = Math.max(0, this.delay - 5);
+      this.hooks.hud?.(this);
+    } else {
+      this.sort.passed++;
+      sfx.hurt();
+      this.p.inv = 0.6;
+      this.burst(fx, e.y + 5, 10, '#ff3b5c');
+      this.floats.push({ x: fx, y: fy, text: '偽物を通した…', life: 1.2 });
+      this.addLeak(12, 'passFake');
+    }
+  }
+
+  missMail(e) {
+    e.dead = true;
+    const fx = this.p.x + 5;
+    const fy = this.p.y - 22;
+    if (!e.real) {
+      this.sort.passed++;
+      sfx.hurt();
+      this.floats.push({ x: fx, y: fy, text: '偽物が受信箱へ…', life: 1.4 });
+      this.addLeak(10, 'passFake');
+    } else {
+      this.sort.missed++;
+      sfx.bad();
+      this.floats.push({ x: fx, y: fy, text: '本物を受け取りそこねた', life: 1.4 });
+      this.addDelay(5, 'missReal');
+    }
+  }
+
+  sortReportText() {
+    const s = this.sort;
+    const head = `仕分けの結果: 偽物を見抜いた ${s.caught}/${s.fakes}、本物を届けた ${s.delivered}/${s.reals}。`;
+    if (s.caught === s.fakes && s.delivered === s.reals) return head + 'パーフェクトです! 1文字違いも見逃しませんでした';
+    if (s.passed) return head + '偽物を通してしまいました……。札を、台帳の本物と1文字ずつ見比べましょう';
+    if (s.stomped) return head + '本物まで追い返してしまいました。見比べて本物なら、受け取って大丈夫です';
+    if (s.missed) return head + '本物を受け取りそこねました。素通りさせず、本物は受け止めて届けましょう';
+    return head + 'いくつか取り逃しました。次は全部仕分けましょう';
   }
 
   burst(x, y, n, color) {
@@ -360,8 +443,8 @@ export class Game {
     // 敵
     for (const e of this.enemies) {
       if (e.dead) continue;
-      // 練習区間の敵は、敵の説明が終わるまでその場で待つ
-      if (e.x < (this.stage.tutorialEnd || 0) * T && !this.tutorialGo) continue;
+      // 説明が終わるまで、その場で待つ敵(練習区間の敵・メール便)
+      if (e.gate && !this.released[e.gate]) continue;
       if (!e.awake && e.x < this.camX + this.vw + 24) e.awake = true;
       if (!e.awake) continue;
       // 初めて画面に映った種類の敵なら、ガードが説明する
@@ -386,9 +469,24 @@ export class Game {
         if (!this.solidAt(Math.floor(fx / T), Math.floor((e.y + e.h + 1) / T))) e.dir *= -1;
       }
       if (e.y > this.rows * T + 32) e.dead = true;
+      // 仕分けずに素通りさせたメール便(主人公の6マス後ろまで行った): 偽物は受信箱に届き、本物は受け取られない
+      if (e.kind === 'mail' && !e.dead && e.x < p.x - 6 * T) {
+        this.missMail(e);
+        if (this.over) return;
+        continue;
+      }
 
       if (!e.dead && overlap(p, e)) {
         const stomp = p.vy > 0 && p.y + p.h - e.y <= 8;
+        if (e.kind === 'mail') {
+          if (stomp) {
+            p.vy = -(held.jump ? PH.stompHeld : PH.stomp);
+            p.jumping = held.jump;
+          }
+          this.sortMail(e, stomp);
+          if (this.over) return;
+          continue;
+        }
         if (stomp) {
           p.vy = -(held.jump ? PH.stompHeld : PH.stomp);
           p.jumping = held.jump;
@@ -442,7 +540,12 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
-        if (h.line?.release) this.tutorialGo = true;
+        if (h.line?.release) this.released[h.line.release] = true;
+        if (h.line?.sortReport) {
+          p.vx = 0;
+          this.hooks.lesson?.([{ who: 'guard', text: this.sortReportText() }]);
+          return;
+        }
         if (h.line?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(h.line.talk);
@@ -697,6 +800,7 @@ export class Game {
       if (e.flash > 0 && Math.floor(t * 30) % 2) continue;
       const fr = S[e.kind][Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
       g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
+      if (e.kind === 'mail') this.drawTag(g, e, X(e.x + 6), Y(e.y - 8), t);
     }
 
     // ---- 主人公 ----
@@ -736,6 +840,32 @@ export class Game {
     }
   }
 
+  // メール便の頭の上の札(差出人のドメイン)。近づくほどはっきり見える
+  drawTag(g, e, cx, bottom) {
+    const d = Math.abs(e.x - this.p.x);
+    const a = Math.max(0, Math.min(1, (11 * T - d) / (4 * T)));
+    if (a <= 0) return;
+    if (cx < 0 || cx > this.vw * RES) return; // 画面に映っているメール便だけ
+    const text = `@${e.domain}`;
+    g.save();
+    g.globalAlpha = a;
+    g.font = '600 13px ui-monospace, Menlo, Consolas, monospace';
+    g.textAlign = 'center';
+    g.textBaseline = 'alphabetic';
+    const w = Math.ceil(g.measureText(text).width) + 10;
+    // 画面の端で切れないよう、札は画面の中に収める(指し示す線はメール便の真上のまま)
+    const x0 = Math.max(4, Math.min(Math.round(this.vw * RES) - w - 4, Math.round(cx - w / 2)));
+    const y0 = bottom - 20;
+    g.fillStyle = '#070d26e6';
+    g.fillRect(x0, y0, w, 18);
+    g.fillStyle = '#7fe3ff';
+    g.fillRect(x0, y0 + 17, w, 1);
+    g.fillRect(cx - 1, y0 + 18, 2, 3);
+    g.fillStyle = '#ffffff';
+    g.fillText(text, x0 + w / 2, y0 + 13);
+    g.restore();
+  }
+
   // 1日のまとめ(振り返りで使う)
   summary(grades) {
     const goods = this.judgments.filter((j) => j.tier === 'best').length;
@@ -759,6 +889,7 @@ export class Game {
       goods,
       total: this.judgments.length,
       judgments: this.judgments,
+      sort: this.sort,
       badges,
       cards: ['bec', 'phishing', 'verify'],
     };

@@ -446,7 +446,12 @@ export function showScene(id, { clues, clock }, done) {
   // 手がかりの有無で、選択肢を差し替える
   const choices = sc.choices
     .filter((c) => !c.onlyWith || clues[c.onlyWith])
-    .map((c) => (c.needs && !clues[c.needs] ? { ...c.alt, usedClue: null } : { ...c, usedClue: c.needs || null }));
+    .map((c) => (c.needs && !clues[c.needs] ? { ...c.alt } : { ...c }));
+  // 並び順は毎回入れ替える(「いつも1番が正解」にならないように)
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
   let finished = false;
 
   const asker =
@@ -469,9 +474,7 @@ export function showScene(id, { clues, clock }, done) {
           <div class="choices">${choices
             .map(
               (c, i) =>
-                `<button data-choice="${i}"><kbd>${i + 1}</kbd><span>${esc(fill(c.label))}${
-                  c.usedClue ? `<em>📒 ${esc(CLUES[c.usedClue].name)}を使う</em>` : ''
-                }</span></button>`,
+                `<button data-choice="${i}"><kbd>${i + 1}</kbd><span>${esc(fill(c.label))}</span></button>`,
             )
             .join('')}</div>
           <div class="tools">
@@ -676,6 +679,11 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
         <div><dt>業務の遅れ(最大)</dt><dd>${Math.round(sum.maxDelay)}%</dd></div>
         <div><dt>最善の判断</dt><dd>${sum.goods} / ${sum.total}</dd></div>
       </dl>
+      ${
+        sum.sort
+          ? `<p class="sortline">メール便の仕分け: 偽物を見抜いた <b>${sum.sort.caught}/${sum.sort.fakes}</b> ・ 本物を届けた <b>${sum.sort.delivered}/${sum.sort.reals}</b></p>`
+          : ''
+      }
       <p class="how">評価 ${sum.points}点 = 100 − 漏洩リスク(最大) − 業務の遅れ(最大)×0.7 + 最善の判断×2</p>
       <ul class="judges">${sum.judgments
         .map((j) => `<li class="${j.tier}"><span>${TIERS[j.tier].mark}</span>${esc(sceneName(j.id))}<em>${esc(TIERS[j.tier].label)}</em></li>`)

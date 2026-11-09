@@ -195,6 +195,47 @@ export function phish(frame = 0) {
   return outline(G, C.pol);
 }
 
+// ---- メール便(本物も偽物も同じ姿。見分けるのは頭の上の札だけ) ----
+// にこやかな封筒に、配達員の帽子と切手
+export function mailer(frame = 0) {
+  const G = grid(32, 32);
+  const top = frame ? 13 : 12;
+  // 帽子
+  rect(G, 10, top - 5, 21, top - 2, C.b3);
+  rect(G, 10, top - 5, 21, top - 5, C.b1);
+  rect(G, 8, top - 2, 23, top - 1, C.b4);
+  set(G, 15, top - 4, C.gold2);
+  set(G, 16, top - 4, C.gold2);
+  // 封筒の体
+  for (let y = top; y <= 29; y++)
+    for (let x = 4; x <= 27; x++) {
+      if (!inRound(x, y, 4, top, 27, 29, 2)) continue;
+      const s = (x - 4) / 23 + (y - top) / 17;
+      set(G, x, y, s < 0.4 ? C.paper1 : s < 1.25 ? C.paper2 : C.paper3);
+    }
+  for (let i = 0; i <= 10; i++) {
+    set(G, 5 + i, top + 1 + Math.floor(i * 0.6), C.paper4);
+    set(G, 26 - i, top + 1 + Math.floor(i * 0.6), C.paper4);
+  }
+  // 切手
+  rect(G, 21, top + 2, 25, top + 6, C.red);
+  rect(G, 22, top + 3, 24, top + 5, C.redHi);
+  // にこやかな目と口
+  const ey = top + 8;
+  rect(G, 10, ey, 11, ey + 1, C.pol);
+  rect(G, 19, ey, 20, ey + 1, C.pol);
+  rect(G, 8, ey + 3, 9, ey + 3, '#f59a9a');
+  rect(G, 21, ey + 3, 22, ey + 3, '#f59a9a');
+  set(G, 13, ey + 3, C.pol);
+  rect(G, 14, ey + 4, 16, ey + 4, C.pol);
+  set(G, 17, ey + 3, C.pol);
+  // 足
+  const fo = frame ? 1 : 0;
+  rect(G, 8 + fo, 30, 10 + fo, 31, C.paper4);
+  rect(G, 21 - fo, 30, 23 - fo, 31, C.paper4);
+  return outline(G, C.pol);
+}
+
 // ---- 敵「Password1!」: 硬そうな鋼の兜。じつはすぐ割れる ----
 export function pass(frame = 0) {
   const G = grid(32, 32);
@@ -656,6 +697,7 @@ export function allArt() {
     kuroda: kuroda(),
     sato: sato(),
     angler: angler(),
+    mailer: mailer(0),
     hero0: hero(0),
     hero1: hero(1),
   };
