@@ -116,6 +116,7 @@ export class Game {
     this.delayCauses = []; // 業務の遅れの原因
     this.overKind = null; // 'leak' | 'delay'
     this.judgments = []; // { id, tier }
+    this.eye = { found: 0, total: 0, falseN: 0 }; // メールの見抜きの成績
     this.clock = '9:30';
     this.time = 0;
     this.t = 0;
@@ -371,7 +372,12 @@ export class Game {
     if (leak) this.addLeak(leak, r.cause);
     if (r.report === false) this.addLeak(15, 'hide');
     if (r.delay) this.addDelay(r.delay, r.cause);
-    this.score += r.score || 0;
+    this.score += (r.score || 0) + (r.found || 0) * 50;
+    // メールの見抜き: 問題ないところに付けた印は「疑いすぎ」
+    this.eye.found += r.found || 0;
+    this.eye.total += r.total || 0;
+    this.eye.falseN += r.falseN || 0;
+    if (r.falseN) this.addDelay(r.falseN * 3, 'falseFlag');
     this.judgments.push({ id, tier: r.tier });
     this.hooks.hud?.(this);
   }
@@ -870,7 +876,7 @@ export class Game {
   summary(grades) {
     const goods = this.judgments.filter((j) => j.tier === 'best').length;
     // 100点から、漏洩リスクと業務の遅れの最大値を引く。最善の判断が多いほど少し足す
-    const points = Math.max(0, Math.min(100, 100 - this.maxLeak - this.maxDelay * 0.7 + goods * 2));
+    const points = Math.max(0, Math.min(100, 100 - this.maxLeak - this.maxDelay * 0.7 + goods * 2 + this.eye.found * 2));
     let g = grades.find((x) => points >= x.min) || grades[grades.length - 1];
     if (g.grade === 'S' && goods < this.judgments.length) g = grades[1]; // S は全部最善のときだけ
     const badges = [];
@@ -890,6 +896,7 @@ export class Game {
       total: this.judgments.length,
       judgments: this.judgments,
       sort: this.sort,
+      eye: this.eye,
       badges,
       cards: ['bec', 'phishing', 'verify'],
     };

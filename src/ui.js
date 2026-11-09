@@ -385,7 +385,9 @@ export function basicsHTML() {
       <li>× 引っかかった ── 漏洩リスクが大きくたまる。すぐ報告すれば半分で済む</li>
     </ul>
     <h3>夕方の評価</h3>
-    <p>100点から「漏洩リスクの最大」と「業務の遅れの最大×0.7」を引き、最善の判断1つにつき2点足す。90点以上で全部が最善なら S。</p>
+    <p>100点から「漏洩リスクの最大」と「業務の遅れの最大×0.7」を引き、最善の判断1つにつき2点、メールの怪しいところを見抜くごとに2点足す。90点以上で全部が最善なら S。</p>
+    <h3>メールの見抜き</h3>
+    <p>判断シーンでは、メールの怪しいところをタップして印を付ける。本当に怪しいところなら「見抜いた」、問題ないところなら「疑いすぎ」(業務の遅れ +3%)。本物のメールなら、印を付けないのが正解。</p>
     <h3>操作</h3>
     <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
   </div>`;
@@ -419,13 +421,29 @@ export function showNotebook(clues, onClose, tab = 'clues') {
 }
 
 // ---------------- 判断シーン ----------------
-function mailHTML(m, lit) {
+// メールの中で「印を付けられるところ」
+//   {{ }} = 本当に怪しいところ(証拠) / [[ ]] = 問題ないところ(引っかけ。印を付けると「疑いすぎ」)
+// mode: 'play' ならタップできるボタン、'review' なら答え合わせの色分け
+// cx: { n: 通し番号, flags: 印を付けた番号, list: 番号ごとの中身 } (同じ順番で数えるので、play と review で番号がそろう)
+function cands(str, cx, mode) {
+  return esc(fill(str)).replace(/(\{\{|\[\[)(.+?)(\}\}|\]\])/g, (_, open, w) => {
+    const i = cx.n++;
+    const ev = open === '{{';
+    cx.list[i] = { ev, text: w };
+    if (mode === 'play') return `<button type="button" class="cand" data-c="${i}">${w}</button>`;
+    const f = cx.flags.has(i);
+    const cls = ev ? (f ? 'hit' : 'miss') : f ? 'false' : 'plain';
+    return `<span class="cand ${cls}">${w}</span>`;
+  });
+}
+
+function mailHTML(m, mode, cx) {
   return `<div class="mock mail">
     <div class="mail-bar">受信トレイ</div>
-    <div class="mail-row"><span>差出人</span><b>${marks(m.from, lit)}</b></div>
-    ${m.replyTo ? `<div class="mail-row"><span>返信先</span><b>${marks(m.replyTo, lit)}</b></div>` : ''}
-    <div class="mail-row"><span>件名</span><b>${marks(m.subject, lit)}</b></div>
-    <div class="mail-body">${m.body.map((l) => `<p>${marks(l, lit)}</p>`).join('')}</div>
+    <div class="mail-row"><span>差出人</span><b>${cands(m.from, cx, mode)}</b></div>
+    ${m.replyTo ? `<div class="mail-row"><span>返信先</span><b>${cands(m.replyTo, cx, mode)}</b></div>` : ''}
+    <div class="mail-row"><span>件名</span><b>${cands(m.subject, cx, mode)}</b></div>
+    <div class="mail-body">${m.body.map((l) => `<p>${cands(l, cx, mode)}</p>`).join('')}</div>
   </div>`;
 }
 
@@ -453,6 +471,9 @@ export function showScene(id, { clues, clock }, done) {
     [choices[i], choices[j]] = [choices[j], choices[i]];
   }
   let finished = false;
+  const cx = { n: 0, flags: new Set(), list: [] };
+  const mailPlay = mailHTML(sc.mock, 'play', cx);
+  const inspectPlay = sc.inspect ? cands(sc.inspect.text, cx, 'play') : '';
 
   const asker =
     sc.from === 'sato'
@@ -469,7 +490,9 @@ export function showScene(id, { clues, clock }, done) {
         ${sc.time ? '<div class="timer"><i></i></div>' : ''}
       </div>
       <div class="scene-body">
-        <div class="scene-left">${asker}${mailHTML(sc.mock, false)}</div>
+        <div class="scene-left">${asker}
+          <p class="mark-count">🔍 怪しいと思うところをタップして印を付けよう <span>印 <b>0</b></span></p>
+          ${mailPlay}</div>
         <div class="scene-right">
           <div class="choices">${choices
             .map(
@@ -482,7 +505,7 @@ export function showScene(id, { clues, clock }, done) {
             ${sc.inspect ? `<button class="inspect" data-act="inspect">${esc(sc.inspect.label)}</button>` : ''}
           </div>
           <div class="detail notebook-in" hidden>${sc.clues.map((k) => clueHTML(k, clues[k])).join('')}</div>
-          ${sc.inspect ? `<p class="detail inspect-out" hidden>${marks(sc.inspect.text, false)}</p>` : ''}
+          ${sc.inspect ? `<p class="detail inspect-out" hidden>${inspectPlay}</p>` : ''}
         </div>
       </div>
     </div>`,
@@ -497,7 +520,14 @@ export function showScene(id, { clues, clock }, done) {
     { sel: '.choices', text: 'どう対応するかを、4つから選びます。答えは「3つの基本動作」で考えると解けます(手帳の「きほん」でいつでも見返せます)' },
   ];
   const timedSteps = [{ sel: '.timer', text: '「至急」「今日中」と急かしてくるメールには、制限時間があります。急かすのは、考える時間を奪う手口です。時間切れになっても、保留扱いで先へ進めます' }];
-  coach('scene', coachSteps, () => (sc.time ? coach('timed', timedSteps, startTimer) : startTimer()));
+  const markSteps = [
+    { sel: '.mark-count', text: 'メールの中で、怪しいと思うところをタップして「印」を付けます。もう一度タップすると外せます' },
+    { sel: '.mock', text: '差出人・返信先・口座・言い回し……。手帳の本物と1文字ずつ見比べましょう。本物のメールなら、印を付けないのが正解です' },
+    { sel: '.choices', text: '印を付けたら、どう対応するかを選びます。答え合わせで、見抜けたところ・見落としたところ・疑いすぎたところが分かります' },
+  ];
+  coach('scene', coachSteps, () =>
+    coach('mark', markSteps, () => (sc.time ? coach('timed', timedSteps, startTimer) : startTimer())),
+  );
 
   // 制限時間(急かしてくるメールだけ)
   function startTimer() {
@@ -523,6 +553,15 @@ export function showScene(id, { clues, clock }, done) {
   }
   }
 
+  on('.cand', (e) => {
+    const b = e.currentTarget;
+    const i = +b.dataset.c;
+    if (cx.flags.has(i)) cx.flags.delete(i);
+    else cx.flags.add(i);
+    b.classList.toggle('flagged', cx.flags.has(i));
+    overlay.querySelector('.mark-count b').textContent = cx.flags.size;
+    sfx.tick();
+  });
   on('[data-act=notebook]', (e) => {
     const el = overlay.querySelector('.notebook-in');
     el.hidden = !el.hidden;
@@ -583,7 +622,18 @@ export function showScene(id, { clues, clock }, done) {
     if (report === true) leak = Math.round(leak / 2);
     if (report === false) leak += FOLLOWUP.hide.leak;
     const after = report === true ? FOLLOWUP.report : report === false ? FOLLOWUP.hide : null;
-    const hasMarks = /\{\{/.test(JSON.stringify(sc.mock)) || sc.inspect;
+    const total = cx.list.filter((x) => x.ev).length;
+    const found = cx.list.filter((x, i) => x.ev && cx.flags.has(i)).length;
+    const falseN = cx.list.filter((x, i) => !x.ev && cx.flags.has(i)).length;
+    const rv = { n: 0, flags: cx.flags, list: [] };
+    const mailReview = mailHTML(sc.mock, 'review', rv);
+    const inspectReview = sc.inspect ? cands(sc.inspect.text, rv, 'review') : '';
+    const eye =
+      total === 0
+        ? falseN === 0
+          ? '怪しいところはなし。印を付けずに見送れた(本物のメール)'
+          : `本物のメールに印を ${falseN} 個付けた(疑いすぎ)`
+        : `怪しいところを ${found}/${total} 個見抜いた${falseN ? `・疑いすぎ ${falseN} 個` : ''}`;
     show(
       `<div class="panel outcome ${c.tier}" role="dialog">
         <p class="mark">${tier.mark}<small>${esc(tier.label)}</small></p>
@@ -595,21 +645,18 @@ export function showScene(id, { clues, clock }, done) {
           ${c.delay ? `<span class="delay">業務の遅れ +${c.delay}%</span>` : ''}
           ${!leak && !c.delay ? '<span class="none">ゲージの変化なし</span>' : ''}
         </p>
-        ${
-          hasMarks
-            ? `<details class="evidence" open><summary>決め手を見る</summary>
-                ${mailHTML(sc.mock, true)}
-                ${sc.inspect ? `<p class="detail">${marks(sc.inspect.text, true)}</p>` : ''}
-                ${sc.clues.filter((k) => clues[k]).map((k) => clueHTML(k, true)).join('')}
-              </details>`
-            : ''
-        }
+        <p class="eye ${total && found === total && !falseN ? 'perfect' : ''}">🔍 あなたの見抜き: ${esc(eye)}${falseN ? `(業務の遅れ +${falseN * 3}%)` : ''}</p>
+        <details class="evidence" open><summary>答え合わせ(<span class="cand hit">見抜いた</span> <span class="cand miss">見落とし</span> <span class="cand false">疑いすぎ</span>)</summary>
+          ${mailReview}
+          ${sc.inspect ? `<p class="detail">${inspectReview}</p>` : ''}
+          ${sc.clues.filter((k) => clues[k]).map((k) => clueHTML(k, true)).join('')}
+        </details>
         <button class="primary" data-act="ok" data-autofocus>つづける</button>
       </div>`,
       'is-dialog',
     );
     const ok = once(() =>
-      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report }),
+      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN }),
     );
     coach(
       'outcome',
@@ -617,7 +664,8 @@ export function showScene(id, { clues, clock }, done) {
         { sel: '.outcome .mark', text: '結果は4段階です。◎最善 ○安全だが遅い △惜しい(たまたま無事) ×引っかかった' },
         { sel: '.outcome .rule', text: 'この判断が、3つの基本動作のどれで解けるかです' },
         { sel: '.outcome .effects', text: 'ゲージの変化です。引っかかると「漏洩リスク」、確かめすぎや人任せだと「業務の遅れ」がたまります' },
-        ...(hasMarks ? [{ sel: '.evidence', text: '「決め手」では、どこを見れば見抜けたかが黄色く光ります。手帳の本物とも見比べてみましょう' }] : []),
+        { sel: '.eye', text: 'あなたの見抜きの成績です。怪しいところを見抜くと評価が上がり、問題ないところに印を付けると「疑いすぎ」で業務が遅れます' },
+        { sel: '.evidence', text: '答え合わせです。緑が見抜いたところ、黄色が見落としたところ、紫が疑いすぎたところ。手帳の本物とも見比べてみましょう' },
       ],
       () => {},
     );
@@ -684,7 +732,8 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle }) {
           ? `<p class="sortline">メール便の仕分け: 偽物を見抜いた <b>${sum.sort.caught}/${sum.sort.fakes}</b> ・ 本物を届けた <b>${sum.sort.delivered}/${sum.sort.reals}</b></p>`
           : ''
       }
-      <p class="how">評価 ${sum.points}点 = 100 − 漏洩リスク(最大) − 業務の遅れ(最大)×0.7 + 最善の判断×2</p>
+      <p class="sortline">メールの見抜き: 怪しいところを見抜いた <b>${sum.eye.found}/${sum.eye.total}</b> ・ 疑いすぎ <b>${sum.eye.falseN}</b></p>
+      <p class="how">評価 ${sum.points}点 = 100 − 漏洩リスク(最大) − 業務の遅れ(最大)×0.7 + 最善の判断×2 + 見抜いたところ×2</p>
       <ul class="judges">${sum.judgments
         .map((j) => `<li class="${j.tier}"><span>${TIERS[j.tier].mark}</span>${esc(sceneName(j.id))}<em>${esc(TIERS[j.tier].label)}</em></li>`)
         .join('')}</ul>

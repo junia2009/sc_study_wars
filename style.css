@@ -725,3 +725,36 @@ body.portrait .movie-text { font-size: 17px; }
 
 .review .sortline { font-size: 14px; margin: 4px 0; }
 .review .sortline b { color: var(--yellow); font-weight: normal; }
+
+/* ---------- メールの見抜き(印を付ける) ---------- */
+.mark-count { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: 13px; color: var(--yellow); }
+.mark-count span { flex: none; color: var(--ink); }
+.mark-count b { font-weight: normal; color: var(--yellow); }
+/* タップできるところ: 点線の下線。印を付けると赤い丸囲み */
+button.cand {
+  display: inline;
+  padding: 0 2px;
+  margin: 0 1px;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background: #e4ecff;
+  border: 0;
+  border-bottom: 2px dotted #5b74c9;
+  border-radius: 3px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button.cand:hover, button.cand:focus-visible { background: #cfdcff; outline: none; }
+button.cand.flagged { color: #fff; background: #e8344e; border-bottom-color: #8a0f24; box-shadow: 0 0 0 2px #ff9fb2; }
+.detail button.cand { background: #233061; color: #fff; border-bottom-color: #7fe3ff; }
+/* 答え合わせ */
+span.cand { padding: 0 3px; border-radius: 3px; }
+span.cand.hit { color: #0b3d1e; background: #7ef0a6; box-shadow: 0 0 0 2px #00e43666; }
+span.cand.miss { color: #3a2a00; background: #ffd23f; }
+span.cand.false { color: #fff; background: #8b5cf6; text-decoration: line-through; }
+span.cand.plain { background: none; }
+.evidence summary span.cand { font-size: 12px; }
+.outcome .eye { margin: 8px 0 0; padding: 6px 10px; font-size: 14px; background: #000; border-radius: 6px; }
+.outcome .eye.perfect { color: var(--green); }
