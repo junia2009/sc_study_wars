@@ -48,6 +48,8 @@ export function buildSprites() {
     mail: [pair(A.mailer(0)), pair(A.mailer(1))],
     pass: [pair(A.pass(0)), pair(A.pass(1))],
     soft: [pair(A.soft(0)), pair(A.soft(1))],
+    virus: [pair(A.virus(0)), pair(A.virus(1))],
+    spam: [pair(A.spam(0)), pair(A.spam(1))],
     groundTop: [toCanvas(A.ground(true, 0)), toCanvas(A.ground(true, 1))],
     ground: [toCanvas(A.ground(false, 0)), toCanvas(A.ground(false, 1))],
     block: toCanvas(A.block()),

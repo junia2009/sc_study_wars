@@ -34,13 +34,14 @@ export function initUI(c) {
 const KEYWORDS = {
   move: () => (ctx.touch() ? '左下の ◀ ▶ キー' : '← → キー'),
   jump: () => (ctx.touch() ? '右下の A ボタン' : 'Z キーかスペース'),
-  note: () => (ctx.touch() ? 'B ボタン' : 'X キー'),
+  note: () => (ctx.touch() ? '右上の 📒' : 'C キーか右上の 📒'),
+  shoot: () => (ctx.touch() ? 'B ボタン' : 'X キー'),
   pause: () => (ctx.touch() ? '右上の ⏸' : 'Esc キー'),
 };
 const fill = (t) =>
   String(t)
     .replace(/\{name\}/g, ctx.name())
-    .replace(/\{(move|jump|note|pause)\}/g, (_, k) => KEYWORDS[k]());
+    .replace(/\{(move|jump|note|pause|shoot)\}/g, (_, k) => KEYWORDS[k]());
 // {{ }} で囲んだ決め手: on なら光らせる、off なら印だけ外す
 const marks = (t, on) =>
   esc(fill(t)).replace(/\{\{(.+?)\}\}/g, (_, w) => (on ? `<mark>${w}</mark>` : w));
@@ -99,6 +100,10 @@ export function updateHud(game) {
     bar.style.setProperty('--v', v / 100);
     bar.classList.toggle('warn', v >= 60);
   }
+  const ioc = $('#hud-ioc');
+  ioc.hidden = !game.ioc;
+  ioc.textContent = `痕跡 ${game.ioc}`;
+  ioc.classList.toggle('ready', game.ioc >= 3);
   $('#hud-clues').innerHTML = Object.keys(CLUES)
     .filter((k) => game.clues[k])
     .map((k) => `<img src="${ctx.clueImg(k)}" alt="${esc(CLUES[k].name)}" width="20" height="20">`)
@@ -160,7 +165,7 @@ export function showTitle({ title, subtitle, owned, heroURL, onStart, onCards, m
         </div>
       </div>
       <p class="tip"><span>Tips</span>${esc(tip)}</p>
-      <p class="keys">← → 移動 / Z・スペース ジャンプ / X 手帳 / Esc 一時停止</p>
+      <p class="keys">← → 移動 / Z ジャンプ / X ショット(長押しでため撃ち) / C 手帳 / Esc 一時停止</p>
       <p class="fine">会社・人物・ドメインはすべて架空です。</p>
       </div>
     </div>`,
@@ -399,7 +404,7 @@ export function basicsHTML() {
     <h3>メールの見抜き</h3>
     <p>判断シーンでは、メールの怪しいところをタップして印を付ける。本当に怪しいところなら「見抜いた」、問題ないところなら「疑いすぎ」(業務の遅れ +3%)。本物のメールなら、印を付けないのが正解。</p>
     <h3>操作</h3>
-    <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
+    <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / ショット: ${esc(KEYWORDS.shoot())}(長押しして離すと、ため撃ち) / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
   </div>`;
 }
 
@@ -509,7 +514,7 @@ const TIMEOUT = {
 };
 
 // clues: 持っている手がかり / clock: 時刻 / done(result)
-export function showScene(id, { clues, clock }, done) {
+export function showScene(id, { clues, clock, ioc = 0 }, done) {
   const sc = SCENES[id];
   // 手がかりの有無で、選択肢を差し替える
   const choices = sc.choices
@@ -552,6 +557,7 @@ export function showScene(id, { clues, clock }, done) {
             .join('')}</div>
           <div class="tools">
             <button class="inspect" data-act="notebook">📒 手帳と見比べる</button>
+            ${ioc >= 3 ? `<button class="inspect" data-act="ioc">🔎 痕跡を使う(3つ / のこり ${ioc})</button>` : ''}
             ${sc.inspect ? `<button class="inspect" data-act="inspect">${esc(sc.inspect.label)}</button>` : ''}
           </div>
           <div class="detail notebook-in" hidden>${sc.clues.map((k) => clueHTML(k, clues[k])).join('')}</div>
@@ -616,6 +622,23 @@ export function showScene(id, { clues, clock }, done) {
     const el = overlay.querySelector('.notebook-in');
     el.hidden = !el.hidden;
     e.currentTarget.classList.toggle('on', !el.hidden);
+  });
+  let iocUsed = 0;
+  let iocLeft = ioc;
+  on('[data-act=ioc]', (e) => {
+    // 集めた痕跡から、まだ印を付けていない「本当に怪しいところ」を1つ光らせる
+    const btns = [...overlay.querySelectorAll('.mock .cand')].filter((b) => cx.list[+b.dataset.c]?.ev && !b.classList.contains('hinted') && !cx.flags.has(+b.dataset.c));
+    const b = btns[Math.floor(Math.random() * btns.length)];
+    iocUsed++;
+    iocLeft -= 3;
+    if (b) {
+      b.classList.add('hinted');
+      sfx.open();
+    } else {
+      e.currentTarget.textContent = '🔎 怪しいところは見つからなかった';
+    }
+    if (iocLeft < 3 || !b) e.currentTarget.disabled = true;
+    else e.currentTarget.textContent = `🔎 痕跡を使う(3つ / のこり ${iocLeft})`;
   });
   on('[data-act=inspect]', (e) => {
     overlay.querySelector('.inspect-out').hidden = false;
@@ -706,7 +729,7 @@ export function showScene(id, { clues, clock }, done) {
       'is-dialog',
     );
     const ok = once(() =>
-      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN, flag: c.flag }),
+      done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN, flag: c.flag, iocUsed }),
     );
     coach(
       'outcome',
@@ -783,6 +806,7 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle, next,
           : ''
       }
       ${sum.eye ? `<p class="sortline">見抜き: 怪しいところを見抜いた <b>${sum.eye.found}/${sum.eye.total}</b> ・ 疑いすぎ <b>${sum.eye.falseN}</b></p>` : ''}
+      ${sum.block && sum.block.kills + sum.block.intruded ? `<p class="sortline">ブロック率: <b>${Math.round((100 * sum.block.kills) / (sum.block.kills + sum.block.intruded))}%</b>(撃退 ${sum.block.kills} ・ 取り逃がし ${sum.block.intruded})</p>` : ''}
       ${sum.push ? `<p class="sortline">承認の通知: 身に覚えのない通知を拒否 <b>${sum.push.denied}</b> ・ うっかり承認 <b>${sum.push.approvedFake}</b></p>` : ''}
       ${sum.files ? `<p class="sortline">添付ファイル: 安全なファイルを開けた <b>${sum.files.safe}</b> ・ マルウェアを開けた <b>${sum.files.malware}</b></p>` : ''}
       ${sum.doors ? `<p class="sortline">URL の扉: 本物に入った <b>${sum.doors.right}</b> ・ 偽物に入った <b>${sum.doors.wrong}</b></p>` : ''}

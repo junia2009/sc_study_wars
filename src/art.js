@@ -797,6 +797,51 @@ export function paper(color = '#29adff') {
 }
 
 // すべての絵(形のチェック用)
+// ---- マルウェア(放っておくと分裂して増える) ----
+// 緑のウイルス。とげとげの殻と、ひとつ目
+export function virus(frame = 0) {
+  const G = grid(32, 32);
+  const cx = 15.5, cy = 21, r = frame ? 8.5 : 8;
+  // とげ
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + (frame ? 0.2 : 0);
+    const x1 = Math.round(cx + Math.cos(a) * (r + 3));
+    const y1 = Math.round(cy + Math.sin(a) * (r + 3));
+    thick(G, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), x1, y1, 1, C.pw3);
+    rect(G, x1 - 1, y1 - 1, x1, y1, C.pw2);
+  }
+  shape(G, 4, 10, 27, 31, (x, y) => ((x - cx) / r) ** 2 + ((y - cy) / r) ** 2 <= 1, (x, y) => {
+    const s = (x - cx + r) / (2 * r) + (y - cy + r) / (2 * r);
+    return s < 0.55 ? C.pw1 : s < 1.1 ? C.pw2 : s < 1.5 ? C.pw3 : C.pw4;
+  });
+  // ひとつ目
+  rect(G, 12, 17, 19, 23, '#ffffff');
+  rect(G, 14 + frame, 19, 17 + frame, 22, C.ol);
+  set(G, 15 + frame, 19, '#ffffff');
+  // 歯
+  for (const x of [12, 14, 16, 18]) set(G, x, 26, '#ffffff');
+  rect(G, 12, 25, 19, 25, C.ol);
+  return outline(G, '#0a3a1c');
+}
+
+// ---- 迷惑メールの群れ(小さくて速い) ----
+export function spam(frame = 0) {
+  const G = grid(32, 32);
+  const top = frame ? 19 : 18;
+  for (let y = top; y <= 29; y++)
+    for (let x = 8; x <= 23; x++) set(G, x, y, y < top + 3 ? '#ffd0e4' : x < 14 ? '#ff9fc6' : '#ff77a8');
+  for (let i = 0; i <= 7; i++) {
+    set(G, 8 + i, top + Math.floor(i * 0.6), '#c4306f');
+    set(G, 23 - i, top + Math.floor(i * 0.6), '#c4306f');
+  }
+  rect(G, 12, top + 6, 13, top + 7, C.ol);
+  rect(G, 18, top + 6, 19, top + 7, C.ol);
+  rect(G, 14, top + 9, 17, top + 9, C.ol);
+  rect(G, 10 + frame, 30, 11 + frame, 31, '#c4306f');
+  rect(G, 20 - frame, 30, 21 - frame, 31, '#c4306f');
+  return outline(G, '#4a0f33');
+}
+
 export function allArt() {
   return {
     'guard.stand': guard('stand'),
@@ -831,5 +876,7 @@ export function allArt() {
     paper: paper(),
     hero0: hero(0),
     hero1: hero(1),
+    virus: virus(0),
+    spam: spam(0),
   };
 }

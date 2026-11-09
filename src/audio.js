@@ -49,6 +49,8 @@ export const sfx = {
   good: () => [659, 880, 1175].forEach((f, i) => tone(f, 0.1, { vol: 0.05, delay: i * 0.08 })),
   bad: () => [330, 247].forEach((f, i) => tone(f, 0.2, { type: 'sawtooth', vol: 0.05, delay: i * 0.15 })),
   alarm: () => [880, 660, 880, 660].forEach((f, i) => tone(f, 0.12, { vol: 0.04, delay: i * 0.13 })),
+  shot: () => tone(980, 0.05, { type: 'square', slide: -300, vol: 0.025 }),
+  charge: () => tone(520, 0.22, { type: 'sawtooth', slide: 600, vol: 0.05 }),
   tick: () => tone(1200, 0.03, { vol: 0.02 }),
   clear: () =>
     [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.14, { vol: 0.05, delay: i * 0.11 })),

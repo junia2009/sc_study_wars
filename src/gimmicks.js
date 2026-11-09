@@ -62,7 +62,7 @@ export const gimmickMethods = {
         return true;
       }
       case 'R':
-        this.boss = { x: px, y: py - 40, w: 24, h: 28, hp: d.angler?.hp || 3, max: d.angler?.hp || 3, state: 'wait', t: 0, inv: 0, dir: -1, homeY: py - 72, awake: false, dead: false };
+        this.boss = { x: px, y: py - 40, w: 24, h: 28, hp: (d.angler?.hp || 3) * 4, max: (d.angler?.hp || 3) * 4, state: 'wait', t: 0, inv: 0, dir: -1, homeY: py - 72, awake: false, dead: false };
         return true;
       default:
         return false;
@@ -176,15 +176,18 @@ export const gimmickMethods = {
       if (this.bossUpdate(dt)) return true;
     }
     for (const h of this.hooksShot) {
+      h.x += (h.vx || 0) * dt;
       h.y += h.vy * dt;
-      h.vy = Math.min(220, h.vy + 200 * dt);
+      h.vy = Math.min(240, h.vy + (h.vx ? 420 : 200) * dt);
       if (!h.dead && overlap(p, h)) {
         h.dead = true;
-        this.hurt('bossHook', 4, h);
+        this.hurt(h.cause || 'bossHook', h.dmg || 4, h);
         if (this.over) return true;
       }
-      if (h.y > this.rows * T) h.dead = true;
+      if (h.y > this.rows * T || (h.vy > 0 && this.solidAt(Math.floor((h.x + 4) / T), Math.floor((h.y + h.h) / T)))) h.dead = true;
     }
+    // 釣り針は弾で打ち落とせる
+    for (const s of this.shots) for (const h of this.hooksShot) if (!h.dead && overlap(s, h)) { h.dead = true; if (!s.big) s.life = 0; this.burst(h.x + 4, h.y + 4, 4, '#e6ecf5'); }
     this.hooksShot = this.hooksShot.filter((h) => !h.dead);
     return false;
   },
@@ -350,24 +353,10 @@ export const gimmickMethods = {
     if (overlap(p, b)) {
       const stomp = p.vy > 0 && p.y + p.h - b.y <= 10 && b.state === 'down';
       if (stomp && b.inv <= 0) {
-        b.hp--;
-        b.inv = 1;
         p.vy = -320;
-        sfx.armor();
-        this.burst(b.x + 12, b.y + 6, 14, '#b18cff');
-        this.floats.push({ x: b.x + 12, y: b.y - 6, text: `のこり ${b.hp}`, life: 1 });
         b.state = 'hover';
         b.t = 0;
-        if (b.hp <= 0) {
-          b.dead = true;
-          this.hooksShot = [];
-          sfx.clear();
-          if (this.day.barrier === 'boss') this.openBarrier('アングラーを追い払った! 出口への道が開いた');
-          if (cfg.defeat) {
-            this.hooks.lesson?.(cfg.defeat);
-            return true;
-          }
-        }
+        if (this.damageBoss(4, 1)) return true;
       } else if (!stomp && p.inv <= 0 && !(b.state === 'down' && b.t > 0.35)) {
         // 降りきって目を回しているあいだは、横から触れても痛くない(踏むチャンス)
         this.hurt('bossHook', 6, b);
@@ -375,6 +364,38 @@ export const gimmickMethods = {
       }
     }
     return false;
+  },
+
+  // ボスに当てた。会話を出したら true
+  damageBoss(n, inv) {
+    const b = this.boss;
+    const cfg = this.day.angler || {};
+    b.hp = Math.max(0, b.hp - n);
+    b.inv = inv;
+    sfx.armor();
+    this.burst(b.x + 12, b.y + 6, n > 1 ? 14 : 5, '#b18cff');
+    if (n > 1) this.floats.push({ x: b.x + 12, y: b.y - 6, text: n >= 4 ? '大ダメージ!' : 'ヒット!', life: 0.8 });
+    if (b.hp > 0) return false;
+    b.dead = true;
+    this.hooksShot = [];
+    this.kills++;
+    sfx.clear();
+    if (this.day.barrier === 'boss') this.openBarrier('アングラーを追い払った! 出口への道が開いた');
+    if (cfg.defeat) {
+      this.p.vx = 0;
+      this.hooks.lesson?.(cfg.defeat);
+      return true;
+    }
+    return false;
+  },
+
+  // 弾がボスに当たったか(当たったら true)。浮いているあいだは届きにくいので、降りてきたところを狙う
+  bossShot(s) {
+    const b = this.boss;
+    if (!b || !b.awake || b.dead || !overlap(s, b)) return false;
+    if (b.inv > 0) return true;
+    this.damageBoss(s.big ? 3 : 1, s.big ? 0.3 : 0.08);
+    return true;
   },
 
   // ---- 描画(敵より前) ----
@@ -441,10 +462,10 @@ export const gimmickMethods = {
         g.fillText('来るぞ! よけろ', clamp(X(b.x + 12), 60, this.vw * RES - 60), Y(b.y) - 22);
       }
       // 体力
-      for (let i = 0; i < b.max; i++) {
-        g.fillStyle = i < b.hp ? '#ff3b5c' : '#3a2140';
-        g.fillRect(X(b.x) + i * 10, Y(b.y) - 16, 8, 6);
-      }
+      g.fillStyle = '#3a2140';
+      g.fillRect(X(b.x) - 4, Y(b.y) - 16, 56, 6);
+      g.fillStyle = '#ff3b5c';
+      g.fillRect(X(b.x) - 4, Y(b.y) - 16, Math.round((56 * b.hp) / b.max), 6);
       if (b.state === 'down') {
         g.fillStyle = '#ffd23f';
         g.font = '14px "DotGothic16", monospace';

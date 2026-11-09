@@ -132,7 +132,7 @@ visualViewport?.addEventListener('resize', fit);
 // ---- ゲーム ----
 let mode = 'title'; // title | play | dialog | end
 // 1週間: 月曜(story.js / stage1.js)+ 火曜〜日曜(days.js)
-const DAYS = [{ ...MONDAY, stage: STAGE1, cards: ['bec', 'phishing', 'verify'] }, ...LATER_DAYS];
+const DAYS = [{ ...MONDAY, stage: STAGE1, cards: ['bec', 'phishing', 'verify'] }, ...LATER_DAYS.map((d) => ({ firstSight: MONDAY.firstSight, ...d }))];
 for (const d of LATER_DAYS) Object.assign(SCENES, d.sceneData);
 let dayIndex = 0;
 let DAY = DAYS[0];
@@ -148,7 +148,7 @@ game = new Game(STAGE1, DAY, S, {
   // 手がかりを取った
   clue: (kind) => {
     const lines = {
-      bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます(B ボタンで見られます)' }],
+      bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます({note}で見られます)' }],
       ledger: [{ who: 'guard', text: '連絡先台帳を手に入れました! 山田さんの本当の連絡先が載っています' }],
     }[kind] || [{ who: 'guard', text: `${CLUES[kind].name}を手に入れました! 手帳に記録しておきます。${CLUES[kind].hint}` }];
     if (learnedDay()) {
@@ -161,6 +161,11 @@ game = new Game(STAGE1, DAY, S, {
   },
   // 遊び方を一度覚えたか(その日を最後まで遊んだら覚えたことにして、2回目からは遊び方の説明を出さない)
   learned: learnedDay,
+  sightSeen: (kind) => !!seen[`sight_${kind}`] || (seen.learned && (kind === 'pass' || kind === 'soft')),
+  markSight: (kind) => {
+    seen[`sight_${kind}`] = true;
+    store.set('scsw.seen', seen);
+  },
   // ガードの説明(チュートリアル): ゲームを止めて会話で説明する
   lesson: (lines) => {
     pause();
@@ -188,7 +193,7 @@ game = new Game(STAGE1, DAY, S, {
     game.clock = DAY.clocks[id] || game.clock;
     UI.updateHud(game);
     UI.talk(DAY.before[id] || [], () => {
-      UI.showScene(id, { clues: game.clues, clock: game.clock }, (result) => {
+      UI.showScene(id, { clues: game.clues, clock: game.clock, ioc: game.ioc }, (result) => {
         game.applyScene(id, result);
         if (!game.over) resume();
       });
@@ -287,7 +292,20 @@ function startDay() {
   UI.prompt(null);
   UI.clearPushes();
   pause();
-  UI.talk(DAY.intro, resume);
+  // 前から遊んでいる人には、新しく増えたショットを一度だけ知らせる
+  const extra =
+    seen.learned && !seen.shootIntro
+      ? [
+          { who: 'guard', text: '{name}さん、ガードに新しい力が付きました! {shoot}で弾を撃てます。長く押してから離すと、大きな「ため撃ち」です' },
+          { who: 'guard', text: '倒さずに置いていった敵は、社内に入り込んで夕方に見つかります。倒した敵が落とす「痕跡」を3つ集めると、判断シーンでヒントに使えます' },
+          { who: 'guard', text: '手帳は{note}から開けます' },
+        ]
+      : [];
+  if (extra.length) {
+    seen.shootIntro = true;
+    store.set('scsw.seen', seen);
+  }
+  UI.talk([...DAY.intro, ...extra], resume);
 }
 function title() {
   mode = 'title';
@@ -350,6 +368,10 @@ function pauseMenu() {
     },
   });
 }
+document.querySelector('#hud-note').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (mode === 'play') game.hooks.notebook();
+});
 document.querySelector('#hud-pause').addEventListener('click', (e) => {
   e.stopPropagation();
   initAudio();

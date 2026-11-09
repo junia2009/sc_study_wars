@@ -60,6 +60,8 @@ export class Game {
     this.clueItems = [];
     this.goal = null;
     this.bumps = [];
+    this.shots = []; // 主人公の弾
+    this.spawners = []; // 迷惑メールの群れが湧く場所
     let start = { x: 32, y: 0 };
     let ti = 0;
     let hi = 0;
@@ -76,6 +78,8 @@ export class Game {
           case 'e': this.enemies.push(this.enemy('phish', px + 2, py + 6)); break;
           case 'p': this.enemies.push(this.enemy('pass', px + 2, py + 6)); break;
           case 'M': mails.push(this.enemy('mail', px + 2, py + 6)); break;
+          case 'v': this.enemies.push(this.enemy('virus', px + 2, py + 6)); break;
+          case 's': this.spawners.push({ x: px, y: py, n: 5, t: 0, on: false }); break;
           case 'o': this.coins.push({ x: px + 4, y: py + 4, w: 8, h: 8 }); break;
           case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: this.day.scenes[ti++], used: false }); break;
           case 'i': this.hints.push({ x: px, line: this.day.hints[hi++], shown: false }); break;
@@ -121,7 +125,7 @@ export class Game {
     // 練習区間の敵は、敵の説明が終わるまで待つ
     for (const e of this.enemies) if (e.x < (st.tutorialEnd || 0) * T) e.gate = 'tutorial';
 
-    this.p = { ...body(start.x, start.y, 10, 14), face: 1, coyote: 0, buffer: 0, inv: 0, jumping: false, anim: 0 };
+    this.p = { ...body(start.x, start.y, 10, 14), face: 1, coyote: 0, buffer: 0, inv: 0, jumping: false, anim: 0, charge: 0, shootPose: 0 };
     this.safe = { x: start.x, y: start.y };
     this.clues = {}; // 手に入れた手がかり(bookmark / ledger)
     this.leak = 0; // 漏洩リスク(満タンで障害報告書)
@@ -134,6 +138,11 @@ export class Game {
     this.overKind = null; // 'leak' | 'delay'
     this.judgments = []; // { id, tier }
     this.flags = {}; // 判断シーンの選択で立つ印(水曜: パスワードの使い回し)
+    this.kills = 0; // 倒した敵
+    this.intruded = []; // 倒さずに取り逃がして、社内に入り込んだ敵の種類
+    this.ioc = 0; // 倒した敵が落とした痕跡(3つで判断シーンのヒント1回)
+    this.combo = { n: 0, t: 0 }; // 続けて倒した数
+    this.shotCool = 0;
     this.eye = { found: 0, total: 0, falseN: 0 }; // メールの見抜きの成績
     this.clock = '9:30';
     this.time = 0;
@@ -154,7 +163,12 @@ export class Game {
   }
 
   enemy(kind, x, y) {
-    return { ...body(x, y, 12, 10), kind, dir: -1, speed: kind === 'phish' ? 26 : 22, dead: false, awake: false, flash: 0 };
+    const e = { ...body(x, y, 12, 10), kind, dir: -1, speed: kind === 'phish' ? 26 : 22, dead: false, awake: false, flash: 0, hp: 1, t: 0 };
+    if (kind === 'pass') e.hp = 2; // 鎧: 弾なら2発(ためた弾なら1発)、踏むなら1回で割れる
+    if (kind === 'virus') Object.assign(e, { speed: 30, gen: 0, split: 5 });
+    if (kind === 'spam') Object.assign(e, { w: 8, h: 7, y: y + 3, speed: 62 });
+    if (kind === 'phish') e.throwT = 1.2 + Math.random();
+    return e;
   }
 
   // ---- 地図 ----
@@ -309,10 +323,105 @@ export class Game {
 
   defeat(e) {
     e.dead = true;
-    this.score += 50;
     sfx.stomp();
-    this.burst(e.x + 6, e.y + 5, 10, e.kind === 'phish' ? '#fff1e8' : '#ff77a8');
-    this.floats.push({ x: e.x + 6, y: e.y - 4, text: '撃退!', life: 0.7 });
+    const col = { phish: '#fff1e8', virus: '#5dff8a', spam: '#ff9fc6' }[e.kind] || '#ff77a8';
+    this.burst(e.x + 6, e.y + 5, 10, col);
+    // 続けて倒すほど点が増える(迷惑メールの群れをまとめて倒すと気持ちいい)
+    this.combo.n = this.combo.t > 0 ? this.combo.n + 1 : 1;
+    this.combo.t = 1.2;
+    const mult = Math.min(this.combo.n, 5);
+    this.score += 50 * mult;
+    this.kills++;
+    if (this.inTutorial()) {
+      this.floats.push({ x: e.x + 6, y: e.y - 4, text: '撃退!', life: 0.7 });
+      return;
+    }
+    // 痕跡(IOC)を落とす。3つ集めると、判断シーンで怪しいところを1つ光らせられる
+    this.ioc++;
+    this.floats.push({ x: e.x + 6, y: e.y - 4, text: mult > 1 ? `撃退 ×${mult}` : '撃退! 痕跡+1', life: 0.8, coin: mult > 1 });
+    if (this.ioc % 3 === 0) this.hooks.banner?.(`痕跡が ${this.ioc} つ。判断シーンでヒントに使える(${Math.floor(this.ioc / 3)}回分)`, 'good');
+    this.hooks.hud?.(this);
+  }
+
+  // 敵に当てた(弾 dmg / 踏みつけ)。倒したら true
+  hitEnemy(e, dmg, how) {
+    if (e.kind === 'mail') {
+      // メール便は、撃つ = 追い返す(仕分け)。本物を撃つと業務が止まる
+      this.sortMail(e, true);
+      return true;
+    }
+    e.hp -= dmg;
+    e.flash = 0.2;
+    if (e.kind === 'pass' && e.hp <= 0 && how !== 'charge') {
+      // 鎧が割れて、中身が逃げ回る
+      e.kind = 'soft';
+      e.hp = 1;
+      e.speed = 52;
+      e.flash = 0.25;
+      this.score += 30;
+      sfx.armor();
+      this.floats.push({ x: e.x + 6, y: e.y - 6, text: 'パキッ', life: 0.8 });
+      return false;
+    }
+    if (e.hp > 0) {
+      sfx.armor();
+      this.floats.push({ x: e.x + 6, y: e.y - 6, text: 'カン!', life: 0.5 });
+      return false;
+    }
+    this.defeat(e);
+    return true;
+  }
+
+  // ---- 弾を撃つ(B ボタン / X キー)。長く押してから離すと、ためた大きい弾 ----
+  fire(big) {
+    const p = this.p;
+    if (!big && (this.shots.filter((s) => !s.big).length >= 3 || this.shotCool > 0)) return;
+    this.shotCool = 0.12;
+    const w = big ? 14 : 7;
+    const h = big ? 10 : 5;
+    this.shots.push({
+      x: p.face > 0 ? p.x + p.w : p.x - w,
+      y: p.y + (big ? 2 : 5),
+      w,
+      h,
+      vx: p.face * (big ? 230 : 260),
+      big,
+      life: 0.9,
+      hit: new Set(),
+    });
+    p.shootPose = 0.25;
+    sfx[big ? 'charge' : 'shot']();
+  }
+
+  updateShots(dt) {
+    for (const s of this.shots) {
+      s.x += s.vx * dt;
+      s.life -= dt;
+      if (this.solidAt(Math.floor((s.x + s.w / 2) / T), Math.floor((s.y + s.h / 2) / T))) {
+        s.life = 0;
+        this.burst(s.x + s.w / 2, s.y + s.h / 2, 4, '#ffd23f');
+        continue;
+      }
+      for (const e of this.enemies) {
+        if (e.dead || s.hit.has(e) || (e.gate && !this.released[e.gate]) || !overlap(s, e)) continue;
+        s.hit.add(e);
+        this.hitEnemy(e, s.big ? 3 : 1, s.big ? 'charge' : 'shot');
+        if (this.over) return;
+        if (!s.big) {
+          s.life = 0; // 小さい弾は1体で消える。ためた弾は貫く
+          break;
+        }
+      }
+      if (s.life > 0 && this.bossShot?.(s)) s.life = s.big ? s.life : 0;
+    }
+    this.shots = this.shots.filter((s) => s.life > 0);
+  }
+
+  // 倒さずに取り逃がした敵は、社内に入り込む(夕方にまとめて見つかる)
+  intrude(e) {
+    e.dead = true;
+    this.intruded.push(e.kind);
+    this.floats.push({ x: this.camX + 30, y: this.p.y - 20, text: '取り逃がした……', life: 1 });
   }
 
   // メール便を仕分けた。stomp: 踏んで追い返した / そうでなければ受け止めた
@@ -399,6 +508,7 @@ export class Game {
     this.eye.falseN += r.falseN || 0;
     if (r.falseN) this.addDelay(r.falseN * 3, 'falseFlag');
     if (r.flag) Object.assign(this.flags, r.flag);
+    if (r.iocUsed) this.ioc = Math.max(0, this.ioc - r.iocUsed * 3);
     this.judgments.push({ id, tier: r.tier });
     this.hooks.hud?.(this);
   }
@@ -487,6 +597,20 @@ export class Game {
       Object.assign(p, { x: this.safe.x, y: this.safe.y, vx: 0, vy: 0, inv: 1.3 });
     }
 
+    // 迷惑メールの群れ: 近づくと、続けざまに流れてくる
+    for (const sp of this.spawners) {
+      if (!sp.on && sp.x < this.camX + this.vw + 8) sp.on = true;
+      if (!sp.on || sp.n <= 0) continue;
+      sp.t -= dt;
+      if (sp.t <= 0) {
+        sp.t = 0.35;
+        sp.n--;
+        const e = this.enemy('spam', sp.x, sp.y + 6);
+        e.awake = true;
+        this.enemies.push(e);
+      }
+    }
+
     // 敵
     for (const e of this.enemies) {
       if (e.dead) continue;
@@ -498,7 +622,9 @@ export class Game {
       if (!this.sighted[e.kind] && e.x < this.camX + this.vw - 8 && e.x > this.camX) {
         this.sighted[e.kind] = true;
         let first = this.day.firstSight?.[e.kind];
-        if (first?.help && this.hooks.learned?.()) first = null;
+        // 敵の説明は、どの日でも一度見たら出さない
+        if (first?.help && (this.hooks.learned?.() || this.hooks.sightSeen?.(e.kind))) first = null;
+        if (first) this.hooks.markSight?.(e.kind);
         if (first?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(first.talk);
@@ -507,6 +633,37 @@ export class Game {
         if (first?.say) this.hooks.say?.(first.say);
       }
       e.flash = Math.max(0, e.flash - dt);
+      e.t += dt;
+      // フィッシング: 近づくと立ち止まって、釣り針を投げてくる(投げた直後がスキ)
+      if (e.kind === 'phish' && !e.gate && e.onGround && Math.abs(e.x - p.x) < 7 * T) {
+        e.throwT -= dt;
+        if (e.throwT < 0.45 && e.throwT > 0) {
+          e.vx = 0;
+          e.dir = p.x < e.x ? -1 : 1;
+          e.flash = Math.max(e.flash, 0.05);
+          this.moveY(e, dt);
+          continue;
+        }
+        if (e.throwT <= 0) {
+          e.throwT = 2.6;
+          const dx = p.x - e.x;
+          this.hooksShot.push({ x: e.x + 4, y: e.y - 4, w: 8, h: 8, vx: clamp(dx * 0.9, -120, 120), vy: -170, cause: 'phishMail', dmg: 6 });
+          sfx.tick();
+        }
+      }
+      // マルウェア: 放っておくと分裂して増える
+      if (e.kind === 'virus' && (e.gen || 0) < 2) {
+        e.split -= dt;
+        if (e.split <= 0) {
+          e.split = 5;
+          e.gen = (e.gen || 0) + 1;
+          const c = this.enemy('virus', e.x, e.y);
+          Object.assign(c, { awake: true, gen: e.gen, dir: -e.dir, vy: -160 });
+          this.enemies.push(c);
+          e.flash = 0.3;
+          this.floats.push({ x: e.x + 6, y: e.y - 6, text: '増殖!', life: 0.8 });
+        }
+      }
       e.vx = e.dir * e.speed;
       e.vy = Math.min(PH.maxFall, e.vy + PH.gravity * dt);
       this.moveX(e, dt);
@@ -521,6 +678,11 @@ export class Game {
       if (e.kind === 'mail' && !e.dead && e.x < p.x - 6 * T) {
         this.missMail(e);
         if (this.over) return;
+        continue;
+      }
+      // 倒さずに画面の後ろへ置いてきた敵は、社内に入り込む
+      if (e.kind !== 'mail' && e.gate !== 'tutorial' && !this.inTutorial() && e.x < this.camX - 3 * T) {
+        this.intrude(e);
         continue;
       }
 
@@ -538,19 +700,11 @@ export class Game {
         if (stomp) {
           p.vy = -(held.jump ? PH.stompHeld : PH.stomp);
           p.jumping = held.jump;
-          if (e.kind === 'pass') {
-            // 硬そうな鎧は、ひと踏みで割れる
-            e.kind = 'soft';
-            e.speed = 52;
-            e.flash = 0.25;
-            this.score += 30;
-            sfx.armor();
-            this.floats.push({ x: e.x + 6, y: e.y - 6, text: 'パキッ', life: 0.8 });
-          } else {
-            this.defeat(e);
-          }
+          // 踏みつけは強い: 鎧も一度で割れる
+          this.hitEnemy(e, e.kind === 'pass' ? e.hp : 3, 'stomp');
         } else {
-          this.hurt(e.kind === 'phish' ? 'phishMail' : 'weakPass', 10, e);
+          const cause = { phish: 'phishMail', virus: 'malwareHit', spam: 'spamHit' }[e.kind] || 'weakPass';
+          this.hurt(cause, e.kind === 'spam' ? 4 : 10, e);
           if (this.over) return;
         }
       }
@@ -647,12 +801,26 @@ export class Game {
       this.hooks.prompt?.(nd ? 'B(X キー)で入口に入る' : null);
     }
 
-    // B ボタン(X キー): 扉の前なら入る、それ以外は手帳を開く
-    if (take('act')) {
-      if (this.gimmickAct()) return;
+    // 手帳(C キー / 画面右上の 📒)
+    if (take('note')) {
       this.hooks.notebook?.();
       return;
     }
+    // B ボタン(X キー): 扉の前なら入る、それ以外は撃つ。押し続けるとためて、離すと大きい弾
+    this.shotCool = Math.max(0, this.shotCool - dt);
+    p.shootPose = Math.max(0, p.shootPose - dt);
+    if (take('act')) {
+      if (this.gimmickAct()) return;
+      this.fire(false);
+    }
+    if (held.act) p.charge += dt;
+    else {
+      if (p.charge >= 0.75) this.fire(true);
+      p.charge = 0;
+    }
+    this.updateShots(dt);
+    if (this.over) return;
+    this.combo.t = Math.max(0, this.combo.t - dt);
 
     // 判断シーン(端末の前を通ったら始まる。飛び越えても逃げられない)
     for (const term of this.terms) {
@@ -666,6 +834,14 @@ export class Game {
 
     // ログアウトゲート(ゴール)
     if (this.goal && p.x + p.w > this.goal.x + 6) {
+      // 取り逃がした敵が、社内で見つかる
+      // 迷惑メールは軽め(1)、ほかの攻撃は重め(3)
+      const n = this.intruded.reduce((a, k) => a + (k === 'spam' ? 1 : 3), 0);
+      if (n) {
+        this.hooks.banner?.(`夕方の点検: 取り逃がした攻撃が ${this.intruded.length} 件、社内で見つかった`, 'bad');
+        this.addLeak(Math.min(20, n), 'intruded');
+        if (this.over) return;
+      }
       this.over = true;
       p.vx = 0;
       sfx.clear();
@@ -884,7 +1060,15 @@ export class Game {
       if (e.dead) continue;
       if (e.flash > 0 && Math.floor(t * 30) % 2) continue;
       const fr = S[e.kind][Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
-      g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
+      if (e.kind === 'spam') g.drawImage(fr, X(e.x - 4), Y(e.y - 9));
+      else g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
+      // 釣り針を投げる前の合図
+      if (e.kind === 'phish' && e.throwT < 0.45 && e.throwT > 0) {
+        g.fillStyle = '#ffd23f';
+        g.font = '16px "DotGothic16", monospace';
+        g.textAlign = 'center';
+        g.fillText('!', X(e.x + 6), Y(e.y - 8));
+      }
       if (e.kind === 'mail') this.drawTag(g, e, X(e.x + 6), Y(e.y - 8), t);
     }
 
@@ -902,6 +1086,32 @@ export class Game {
           ? S.guard.run[Math.floor(p.anim * 2) % 4][side]
           : S.guard.stand[blink][side];
       g.drawImage(fr, X(p.x - 3), Y(p.y - 2));
+    }
+    // ためているあいだは光る(ためきると色が変わる)
+    if (p.charge > 0.2) {
+      const full = p.charge >= 0.75;
+      g.fillStyle = full ? (Math.floor(t * 16) % 2 ? 'rgba(255,210,63,0.5)' : 'rgba(127,227,255,0.5)') : 'rgba(127,227,255,0.25)';
+      g.beginPath();
+      g.arc(X(p.x + 5), Y(p.y + 7), full ? 20 : 14 + p.charge * 6, 0, Math.PI * 2);
+      g.fill();
+    }
+    // 弾
+    for (const sh of this.shots) {
+      const x = X(sh.x);
+      const y = Y(sh.y);
+      if (sh.big) {
+        g.fillStyle = 'rgba(127,227,255,0.45)';
+        g.fillRect(x - 4, y - 4, sh.w * RES + 8, sh.h * RES + 8);
+        g.fillStyle = '#7fe3ff';
+        g.fillRect(x, y, sh.w * RES, sh.h * RES);
+        g.fillStyle = '#ffffff';
+        g.fillRect(x + 6, y + 5, sh.w * RES - 12, sh.h * RES - 10);
+      } else {
+        g.fillStyle = '#ffd23f';
+        g.fillRect(x, y, sh.w * RES, sh.h * RES);
+        g.fillStyle = '#fff4b0';
+        g.fillRect(x + 3, y + 2, sh.w * RES - 6, sh.h * RES - 4);
+      }
     }
     // 多要素認証の盾が光る
     if (this.shieldFlash > 0) {
@@ -991,6 +1201,7 @@ export class Game {
       doors: this.doorStats || null,
       files: this.day.files ? { safe: this.filesSafe, opened: this.files.filter((f) => f.opened).length, total: this.files.length, malware: this.files.filter((f) => f.opened && !f.safe).length } : null,
       bossDefeated: this.boss ? !!this.boss.dead : null,
+      block: { kills: this.kills, intruded: this.intruded.length },
     };
   }
 }

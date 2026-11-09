@@ -29,7 +29,8 @@
             <span class="label">遅れ</span><span id="hud-delay" class="bar" role="meter" aria-label="業務の遅れ"><i></i></span>
           </span>
         </span>
-        <span id="hud-clues" class="clues" aria-label="手に入れた手がかり"></span>
+        <span id="hud-ioc" title="痕跡(3つで判断シーンのヒント1回)" hidden></span>
+        <button id="hud-note" type="button" aria-label="手帳を開く"><span id="hud-clues" class="clues"></span><b>📒</b></button>
         <button id="hud-pause" type="button" aria-label="一時停止"><i></i><i></i></button>
       </div>
       <div id="banner" role="status" aria-live="polite"></div>
@@ -44,7 +45,7 @@
         <span class="key right" data-btn="right" data-show="right"><i></i></span>
       </div>
       <div class="cluster btns" data-zone="btns">
-        <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>手帳</small></span>
+        <span class="pad-btn act" data-btn="act" data-show="act"><b>B</b><small>ショット</small></span>
         <span class="pad-btn jump" data-btn="jump" data-show="jump"><b>A</b><small>ジャンプ</small></span>
       </div>
     </div>

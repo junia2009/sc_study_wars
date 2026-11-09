@@ -1,16 +1,17 @@
 // キーボード・画面のボタン・ゲームパッドの入力をまとめる。
-//   held.left / right / jump / act   … 押している間 true
-//   take('jump') / take('act')        … 前に呼んでから押されたら true(1回だけ)
+//   held.left / right / jump / act(撃つ) / note(手帳)   … 押している間 true
+//   take('jump') / take('act') / take('note')        … 前に呼んでから押されたら true(1回だけ)
 
 const KEYS = {
   ArrowLeft: 'left', KeyA: 'left',
   ArrowRight: 'right', KeyD: 'right',
   KeyZ: 'jump', Space: 'jump', KeyK: 'jump', KeyW: 'jump',
-  KeyX: 'act', ArrowUp: 'act', KeyJ: 'act', Enter: 'act',
+  KeyX: 'act', KeyJ: 'act', ArrowUp: 'act', Enter: 'act',
+  KeyC: 'note', KeyI: 'note',
 };
 
-export const held = { left: false, right: false, jump: false, act: false };
-const pressed = { jump: false, act: false };
+export const held = { left: false, right: false, jump: false, act: false, note: false };
+const pressed = { jump: false, act: false, note: false };
 const sources = { key: {}, touch: {}, pad: {} };
 
 function refresh(name) {
@@ -26,7 +27,7 @@ export function take(name) {
 }
 
 export function clearPressed() {
-  pressed.jump = pressed.act = false;
+  pressed.jump = pressed.act = pressed.note = false;
 }
 
 let enabled = true;
@@ -176,6 +177,7 @@ export function pollPad() {
     right: b(15) || ax > 0.4,
     jump: b(0),
     act: b(1) || b(2) || b(12),
+    note: b(3),
   };
   for (const k in next) {
     if (sources.pad[k] !== next[k]) {
