@@ -369,8 +369,9 @@ export class Game {
     }
     if (e.kind === 'staff') {
       // 本物の社員を撃ってしまった(倒れない。仕事が止まる)
-      if (e.flash > 0) return 'guard';
-      e.flash = 0.8;
+      e.flash = 0.6;
+      if (e.wronged) return 'guard'; // 同じ同僚で何度も減らさない(1人につき1回)
+      e.wronged = true;
       sfx.bad();
       this.floats.push({ x: e.x + 5, y: e.y - 8, text: '同僚だった!', life: 1 });
       this.addDelay(6, 'hitColleague');
