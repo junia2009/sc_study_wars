@@ -46,7 +46,7 @@ const ASK_KURODA = {
 export const SCENES = {
   invoice: {
     from: 'sato',
-    ask: '山田さんから請求書が来ました。いつもどおり処理して大丈夫ですか?',
+    ask: 'いつもの請求書です。処理していい?',
     time: 0,
     clues: ['ledger'],
     mock: {
@@ -101,7 +101,7 @@ export const SCENES = {
 
   bec: {
     from: 'sato',
-    ask: '山田さんから、振込先が変わったって連絡が……。15時までにって書いてあって',
+    ask: '振込先が変わったって……15時までに!',
     time: 60,
     clues: ['ledger'],
     mock: {

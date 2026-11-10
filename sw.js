@@ -1,6 +1,6 @@
 // オフラインでも遊べるように、ゲームのファイルを端末に保存する。
 // ファイルを変えたら VERSION を上げること(古い保存が消えて、新しいものに入れ替わる)。
-const VERSION = 'scsw-v0.13.0';
+const VERSION = 'scsw-v0.14.0';
 const FILES = [
   './',
   './index.html',
@@ -30,6 +30,7 @@ const FILES = [
   './data/days.js',
   './data/mapkit.js',
   './data/weapons.js',
+  './data/actions.js',
 ];
 
 self.addEventListener('install', (e) => {

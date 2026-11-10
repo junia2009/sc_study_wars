@@ -1,6 +1,7 @@
 // 文字を出す画面(HTML で描く):
 //   タイトル・名前入力・HUD・会話・手帳・判断シーン・障害報告書/始末書・振り返り・解説カード・一時停止
 import { SCENES, RULES, TIERS, FOLLOWUP } from '../data/scenes.js';
+import { ACTIONS, ESCALATE } from '../data/actions.js';
 import { CARDS, CAUSES, TIPS } from '../data/cards.js';
 import { PEOPLE, CLUES } from '../data/story.js';
 import { sfx } from './audio.js';
@@ -510,7 +511,6 @@ const SCENE_NAMES = {
   threat: '黒幕からの脅し',
 };
 const KIND_SELF = { mail: 'あなたあてのメール', chat: 'あなたあてのチャット', call: 'あなたへの電話', screen: '目の前の画面' };
-const KIND_NAME = { mail: 'メール', chat: 'チャット', call: '電話', screen: '画面' };
 export const sceneName = (id) => SCENE_NAMES[id] || id;
 
 const TIMEOUT = {
@@ -521,81 +521,118 @@ const TIMEOUT = {
   text: '決めきれずに時間切れ。でも、急かされたときに判断を保留するのは悪くない選択。保留したら、別の道で確かめよう。',
 };
 
+// 2つの文字列を1文字ずつ重ねて、違う文字に印を付ける(短い文字列なので、素直な LCS で十分)
+function diffHTML(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const L = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const ka = new Array(n).fill(false);
+  const kb = new Array(m).fill(false);
+  for (let i = 0, j = 0; i < n && j < m; ) {
+    if (a[i] === b[j]) {
+      ka[i] = kb[j] = true;
+      i++;
+      j++;
+    } else if (L[i + 1][j] >= L[i][j + 1]) i++;
+    else j++;
+  }
+  const paint = (str, keep, cls) => [...str].map((ch, i) => (keep[i] ? esc(ch) : `<i class="${cls}">${esc(ch)}</i>`)).join('');
+  return { a: paint(a, ka, 'bad'), b: paint(b, kb, 'good'), same: a === b };
+}
+
+const FX = {
+  best: '🛡️',
+  safe: '⏳',
+  ok: '😅',
+};
+
 // clues: 持っている手がかり / clock: 時刻 / done(result)
+// 読んで選ぶのではなく、手を動かして確かめる画面:
+//   🔍 手帳と重ねる … 違う文字が光る / 📞 電話 … どの番号にかけるかを自分で選ぶ / ボタンは絵と短い言葉だけ
 export function showScene(id, { clues, clock, ioc = 0 }, done) {
   const sc = SCENES[id];
-  // 手がかりの有無で、選択肢を差し替える
-  const choices = sc.choices
-    .filter((c) => !c.onlyWith || clues[c.onlyWith])
-    .map((c) => (c.needs && !clues[c.needs] ? { ...c.alt } : { ...c }));
-  // 並び順は毎回入れ替える(「いつも1番が正解」にならないように)
-  for (let i = choices.length - 1; i > 0; i--) {
+  const A = ACTIONS[id] || {};
+  // 手がかりの有無で、選択肢を差し替える(差し替えた先は「先輩に相談」)
+  const entries = sc.choices
+    .map((c, i) => ({ c, act: A.acts?.[i] }))
+    .filter(({ c }) => !c.onlyWith || clues[c.onlyWith])
+    .map(({ c, act }) => (c.needs && !clues[c.needs] ? { c: { ...c.alt }, act: ESCALATE } : { c: { ...c }, act: act || (c.cause === 'escalate' ? ESCALATE : { icon: '▶️', short: c.label }) }));
+  // 見比べる行(手がかりを持っているものだけ使える)
+  const rows = (A.compare || []).map((r) => ({ ...r, has: !!clues[r.clue], seen: false }));
+  const usable = rows.filter((r) => r.has);
+  const compared = () => usable.length > 0 && usable.every((r) => r.seen);
+  // ボタン: 電話はダイヤル画面へまとめ、同じ group は1つにまとめる
+  const buttons = [];
+  const calls = entries.filter((e) => e.act.via);
+  if (calls.length) buttons.push({ icon: '📞', short: '電話する', kind: 'dial' });
+  const groups = {};
+  for (const e of entries) {
+    if (e.act.via) continue;
+    if (e.act.group) {
+      if (!groups[e.act.group]) {
+        groups[e.act.group] = [];
+        buttons.push({ icon: e.act.icon, short: e.act.short, kind: 'group', key: e.act.group });
+      }
+      groups[e.act.group].push(e);
+    } else buttons.push({ icon: e.act.icon, short: e.act.short, kind: 'one', entry: e });
+  }
+  for (let i = buttons.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [choices[i], choices[j]] = [choices[j], choices[i]];
+    [buttons[i], buttons[j]] = [buttons[j], buttons[i]];
   }
   let finished = false;
   const cx = { n: 0, flags: new Set(), list: [] };
   const mailPlay = mailHTML(sc.mock, 'play', cx);
   const inspectPlay = sc.inspect ? cands(sc.inspect.text, cx, 'play') : '';
-
+  const kind = sc.mock.kind || 'mail';
   const asker =
     sc.from === 'sato'
-      ? `<div class="asker">${faceImg('sato', 48)}<p><b>佐藤さん</b>${esc(fill(sc.ask))}</p></div>`
-      : `<div class="asker self"><p><b>${KIND_SELF[sc.mock.kind || 'mail']}</b>自分で判断しよう</p></div>`;
+      ? `<div class="asker">${faceImg('sato', 40)}<p><b>佐藤さん</b>${esc(fill(sc.ask))}</p></div>`
+      : `<div class="asker self"><p><b>${KIND_SELF[kind]}</b></p></div>`;
+  const rowHTML = (r, i) =>
+    r.has
+      ? `<button class="cmp" data-cmp="${i}"><span>🔍</span>${esc(r.label)}を重ねる</button><div class="cmp-out" data-out="${i}" hidden></div>`
+      : `<p class="cmp missing">${esc(r.label)}: 手帳に${esc(CLUES[r.clue].name)}がない</p>`;
 
   show(
     `<div class="panel scene" role="dialog" aria-label="判断シーン">
       <div class="scene-top">
         <div class="scene-head">
-          <span class="tag">${esc(clock)} 判断シーン</span>
-          ${sc.time ? `<span class="count">あと <b>${sc.time}</b> 秒</span>` : '<span class="count calm">時間制限なし</span>'}
+          <span class="tag">${esc(clock)}</span>
+          ${sc.time ? `<span class="count">あと <b>${sc.time}</b> 秒</span>` : ''}
         </div>
         ${sc.time ? '<div class="timer"><i></i></div>' : ''}
       </div>
       <div class="scene-body">
         <div class="scene-left">${asker}
-          <p class="mark-count">🔍 怪しいと思うところをタップして印を付けよう <span>印 <b>0</b></span></p>
-          ${mailPlay}</div>
+          <p class="mark-count">怪しいところをタップ <span>印 <b>0</b></span></p>
+          ${mailPlay}
+          ${sc.inspect ? `<button class="inspect" data-act="inspect">${esc(sc.inspect.label)}</button><p class="detail inspect-out" hidden>${inspectPlay}</p>` : ''}
+        </div>
         <div class="scene-right">
-          <div class="choices">${choices
-            .map(
-              (c, i) =>
-                `<button data-choice="${i}"><kbd>${i + 1}</kbd><span>${esc(fill(c.label))}</span></button>`,
-            )
+          ${rows.length ? `<div class="compare"><p class="cmp-head">手帳と重ねる</p>${rows.map(rowHTML).join('')}</div>` : ''}
+          ${ioc >= 3 ? `<button class="inspect" data-act="ioc">🔎 痕跡を使う(のこり ${ioc})</button>` : ''}
+          <div class="acts">${buttons
+            .map((b, i) => `<button class="act-btn" data-btn="${i}"><kbd>${i + 1}</kbd><span class="ic">${b.icon}</span><span>${esc(b.short)}</span></button>`)
             .join('')}</div>
-          <div class="tools">
-            <button class="inspect" data-act="notebook">📒 手帳と見比べる</button>
-            ${ioc >= 3 ? `<button class="inspect" data-act="ioc">🔎 痕跡を使う(3つ / のこり ${ioc})</button>` : ''}
-            ${sc.inspect ? `<button class="inspect" data-act="inspect">${esc(sc.inspect.label)}</button>` : ''}
-          </div>
-          <div class="detail notebook-in" hidden>${sc.clues.map((k) => clueHTML(k, clues[k])).join('')}</div>
-          ${sc.inspect ? `<p class="detail inspect-out" hidden>${inspectPlay}</p>` : ''}
         </div>
       </div>
+      <div class="dialer" hidden></div>
     </div>`,
     'is-dialog is-scene',
   );
 
-  // 初めての判断シーンでは、画面の見方を説明してから始める(制限時間はそのあと動き出す)
-  const coachSteps = [
-    { sel: '.asker', text: sc.from === 'sato' ? '佐藤さんから相談が届きました。これが「判断シーン」です' : '自分あてのメールが届きました。これが「判断シーン」です' },
-    { sel: '.mock', text: `届いた${KIND_NAME[sc.mock.kind || 'mail']}です。相手・差出人・本文を、よく見ましょう` },
-    { sel: '[data-act=notebook]', text: '「手帳と見比べる」で、集めた手がかり(本物の情報)と見比べられます。メールと違うところがあれば、怪しいサインです' },
-    { sel: '.choices', text: 'どう対応するかを、4つから選びます。答えは「3つの基本動作」で考えると解けます(手帳の「きほん」でいつでも見返せます)' },
-  ];
-  const timedSteps = [{ sel: '.timer', text: '「至急」「今日中」と急かしてくるメールには、制限時間があります。急かすのは、考える時間を奪う手口です。時間切れになっても、保留扱いで先へ進めます' }];
-  const markSteps = [
-    { sel: '.mark-count', text: 'メールの中で、怪しいと思うところをタップして「印」を付けます。もう一度タップすると外せます' },
-    { sel: '.mock', text: '差出人・返信先・口座・言い回し……。手帳の本物と1文字ずつ見比べましょう。本物のメールなら、印を付けないのが正解です' },
-    { sel: '.choices', text: '印を付けたら、どう対応するかを選びます。答え合わせで、見抜けたところ・見落としたところ・疑いすぎたところが分かります' },
-  ];
-  coach('scene', coachSteps, () =>
-    coach('mark', markSteps, () => (sc.time ? coach('timed', timedSteps, startTimer) : startTimer())),
-  );
+  // 初めてのときだけ、見方を短く
+  const steps = [
+    { sel: '.mock', text: '届いたものを見て、怪しいところはタップで印' },
+    rows.length ? { sel: '.compare', text: '手帳と重ねると、違う文字が光る' } : null,
+    { sel: '.acts', text: 'どうするかを、ボタンで選ぶ' },
+  ].filter(Boolean);
+  coach('scene2', steps, () => (sc.time ? coach('timed', [{ sel: '.timer', text: '急かしてくるものには時間制限。時間切れは「保留」' }], startTimer) : startTimer()));
 
-  // 制限時間(急かしてくるメールだけ)
   function startTimer() {
-  if (sc.time) {
+    if (!sc.time) return;
     const bar = overlay.querySelector('.timer i');
     const count = overlay.querySelector('.count b');
     const start = performance.now();
@@ -615,7 +652,6 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     };
     requestAnimationFrame(tick);
   }
-  }
 
   on('.cand', (e) => {
     const b = e.currentTarget;
@@ -626,10 +662,28 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     overlay.querySelector('.mark-count b').textContent = cx.flags.size;
     sfx.tick();
   });
-  on('[data-act=notebook]', (e) => {
-    const el = overlay.querySelector('.notebook-in');
-    el.hidden = !el.hidden;
-    e.currentTarget.classList.toggle('on', !el.hidden);
+  // 手帳と重ねる
+  on('[data-cmp]', (e) => {
+    const i = +e.currentTarget.dataset.cmp;
+    const r = rows[i];
+    const out = overlay.querySelector(`[data-out="${i}"]`);
+    let html;
+    if (r.kind === 'ext') {
+      const k = r.mail.lastIndexOf('.');
+      const ext = r.mail.slice(k);
+      const danger = ['.exe', '.scr', '.bat', '.js', '.docm', '.xlsm'].includes(ext);
+      html = `<p class="cmp-line"><code>${esc(r.mail.slice(0, k))}<i class="${danger ? 'bad' : 'good'}">${esc(ext)}</i></code></p><p class="verdict ${danger ? 'ng' : 'okv'}">${danger ? `いちばん右は ${esc(ext)}: 開くと動くファイル!` : `いちばん右は ${esc(ext)}: 書類`}</p>`;
+    } else if (r.kind === 'rule') {
+      html = `<p class="cmp-line rule-line">📒 ${esc(CLUES[r.clue].lines[r.ref])}</p>`;
+    } else {
+      const d = diffHTML(r.mail, r.ref);
+      html = `<p class="cmp-line"><span>届いた</span><code>${d.a}</code></p><p class="cmp-line"><span>手帳</span><code>${d.b}</code></p><p class="verdict ${d.same ? 'okv' : 'ng'}">${d.same ? '一致' : 'ちがう!'}</p>`;
+    }
+    out.innerHTML = html;
+    out.hidden = false;
+    e.currentTarget.classList.add('done');
+    r.seen = true;
+    sfx.open();
   });
   let iocUsed = 0;
   let iocLeft = ioc;
@@ -642,21 +696,52 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     if (b) {
       b.classList.add('hinted');
       sfx.open();
-    } else {
-      e.currentTarget.textContent = '🔎 怪しいところは見つからなかった';
-    }
+    } else e.currentTarget.textContent = '🔎 もう怪しいところはない';
     if (iocLeft < 3 || !b) e.currentTarget.disabled = true;
-    else e.currentTarget.textContent = `🔎 痕跡を使う(3つ / のこり ${iocLeft})`;
+    else e.currentTarget.textContent = `🔎 痕跡を使う(のこり ${iocLeft})`;
   });
   on('[data-act=inspect]', (e) => {
     overlay.querySelector('.inspect-out').hidden = false;
     e.currentTarget.disabled = true;
   });
-  on('[data-choice]', (e) => choose(choices[+e.currentTarget.dataset.choice]));
+  const press = (i) => {
+    const b = buttons[i];
+    if (!b || finished) return;
+    if (b.kind === 'dial') return openDialer();
+    if (b.kind === 'group') {
+      const list = groups[b.key];
+      const pick = list.find((e) => (e.act.when === 'compared' ? compared() : e.act.when === 'not' ? !compared() : true)) || list[0];
+      return choose(pick.c);
+    }
+    choose(b.entry.c);
+  };
+  on('[data-btn]', (e) => press(+e.currentTarget.dataset.btn));
   setKeys((e) => {
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= choices.length) choose(choices[n - 1]);
+    if (n >= 1 && n <= buttons.length) press(n - 1);
   });
+
+  // ダイヤル画面: どの番号にかけるかを、自分の指で選ぶ
+  function openDialer() {
+    const el = overlay.querySelector('.dialer');
+    const order = calls.map((_, i) => i).sort(() => Math.random() - 0.5);
+    const opts = order.map((i) => calls[i]).map((e, k) => `<button class="dial-opt" data-dial="${order[k]}"><span>${e.act.via === 'book' ? '📒' : '✉️'}</span><code>${esc(e.act.dial)}</code></button>`).join('');
+    el.innerHTML = `<div class="dial-box"><p class="dial-head">📞 どこにかける?</p>${opts}${calls.some((e) => e.act.via === 'book') ? '' : '<p class="fine">手帳に番号がない……</p>'}<button class="ghost" data-dial="x">やめる</button></div>`;
+    el.hidden = false;
+    el.querySelectorAll('[data-dial]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const v = b.dataset.dial;
+        if (v === 'x') {
+          el.hidden = true;
+          return;
+        }
+        const e = calls[+v];
+        el.innerHTML = `<div class="dial-box calling"><p class="dial-head">📞</p><p><code>${esc(e.act.dial)}</code></p><p class="ringing">発信中…</p></div>`;
+        sfx.tick();
+        setTimeout(() => choose(e.c), 900);
+      }),
+    );
+  }
 
   function choose(c) {
     if (finished) return;
@@ -665,22 +750,20 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     if (c.followup) {
       sfx.bad();
       followup(c);
-    } else {
-      outcome(c, undefined);
-    }
+    } else outcome(c, undefined);
   }
 
   // 引っかかったあと: すぐ報告するか(③ やったら報告)
   function followup(c) {
     show(
       `<div class="panel outcome fooled" role="dialog">
+        ${fxHTML('fooled')}
         <p class="mark">×</p>
         <h2>${esc(c.title)}</h2>
-        <p>${esc(fill(c.text))}</p>
-        <p class="ask-again">${esc(FOLLOWUP.ask)}</p>
-        <div class="choices">
-          <button data-act="report" data-autofocus><kbd>1</kbd><span>${esc(FOLLOWUP.report.label)}</span></button>
-          <button data-act="hide"><kbd>2</kbd><span>${esc(FOLLOWUP.hide.label)}</span></button>
+        <p class="ask-again">……どうする?</p>
+        <div class="acts two">
+          <button class="act-btn" data-act="report" data-autofocus><kbd>1</kbd><span class="ic">🚨</span><span>すぐ報告</span></button>
+          <button class="act-btn" data-act="hide"><kbd>2</kbd><span class="ic">🤐</span><span>黙っておく</span></button>
         </div>
       </div>`,
       'is-dialog',
@@ -692,6 +775,15 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
       if (e.key === '1') pick(true);
       if (e.key === '2') pick(false);
     });
+  }
+
+  // 起きたことを絵で見せる(引っかかったら、大事なものが飛んでいく)
+  function fxHTML(t) {
+    if (t === 'fooled' || t === 'close') {
+      const icon = t === 'fooled' ? A.loss || '💸' : '⚠️';
+      return `<div class="fx fly" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<i style="--i:${i}">${icon}</i>`).join('')}</div>`;
+    }
+    return `<div class="fx pop" aria-hidden="true"><i>${FX[t] || '✅'}</i></div>`;
   }
 
   function outcome(c, report) {
@@ -709,25 +801,22 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     const rv = { n: 0, flags: cx.flags, list: [] };
     const mailReview = mailHTML(sc.mock, 'review', rv);
     const inspectReview = sc.inspect ? cands(sc.inspect.text, rv, 'review') : '';
-    const eye =
-      total === 0
-        ? falseN === 0
-          ? '怪しいところはなし。印を付けずに見送れた(本物)'
-          : `本物に印を ${falseN} 個付けた(疑いすぎ)`
-        : `怪しいところを ${found}/${total} 個見抜いた${falseN ? `・疑いすぎ ${falseN} 個` : ''}`;
+    const eye = total === 0 ? (falseN ? `疑いすぎ ${falseN}` : '本物を見送れた') : `見抜いた ${found}/${total}${falseN ? `・疑いすぎ ${falseN}` : ''}`;
     show(
       `<div class="panel outcome ${c.tier}" role="dialog">
+        ${fxHTML(c.tier)}
         <p class="mark">${tier.mark}<small>${esc(tier.label)}</small></p>
         <h2>${esc(after ? after.title : c.title)}</h2>
-        <p>${esc(fill(after ? `${c.text} ${after.text}` : c.text))}</p>
-        <p class="rule">${esc(RULES[c.rule])}</p>
+        ${A.lesson ? `<p class="lesson">${esc(A.lesson)}</p>` : ''}
         <p class="effects">
-          ${leak ? `<span class="leak">漏洩リスク +${leak}%</span>` : ''}
-          ${c.delay ? `<span class="delay">業務の遅れ +${c.delay}%</span>` : ''}
-          ${!leak && !c.delay ? '<span class="none">ゲージの変化なし</span>' : ''}
+          ${leak ? `<span class="leak">漏洩 +${leak}%</span>` : ''}
+          ${c.delay ? `<span class="delay">遅れ +${c.delay}%</span>` : ''}
+          ${falseN ? `<span class="delay">疑いすぎ +${falseN * 3}%</span>` : ''}
+          <span class="eye-chip ${total && found === total && !falseN ? 'perfect' : ''}">🔍 ${esc(eye)}</span>
         </p>
-        <p class="eye ${total && found === total && !falseN ? 'perfect' : ''}">🔍 あなたの見抜き: ${esc(eye)}${falseN ? `(業務の遅れ +${falseN * 3}%)` : ''}</p>
-        <details class="evidence" open><summary>答え合わせ(<span class="cand hit">見抜いた</span> <span class="cand miss">見落とし</span> <span class="cand false">疑いすぎ</span>)</summary>
+        <details class="evidence"><summary>くわしく</summary>
+          <p>${esc(fill(after ? `${c.text} ${after.text}` : c.text))}</p>
+          <p class="rule">${esc(RULES[c.rule])}</p>
           ${mailReview}
           ${sc.inspect ? `<p class="detail">${inspectReview}</p>` : ''}
           ${sc.clues.filter((k) => clues[k]).map((k) => clueHTML(k, true)).join('')}
@@ -738,17 +827,6 @@ export function showScene(id, { clues, clock, ioc = 0 }, done) {
     );
     const ok = once(() =>
       done({ tier: c.tier, leak: c.leak || 0, delay: c.delay || 0, cause: c.cause, score: tier.score, report, found, total, falseN, flag: c.flag, iocUsed }),
-    );
-    coach(
-      'outcome',
-      [
-        { sel: '.outcome .mark', text: '結果は4段階です。◎最善 ○安全だが遅い △惜しい(たまたま無事) ×引っかかった' },
-        { sel: '.outcome .rule', text: 'この判断が、3つの基本動作のどれで解けるかです' },
-        { sel: '.outcome .effects', text: 'ゲージの変化です。引っかかると「漏洩リスク」、確かめすぎや人任せだと「業務の遅れ」がたまります' },
-        { sel: '.eye', text: 'あなたの見抜きの成績です。怪しいところを見抜くと評価が上がり、問題ないところに印を付けると「疑いすぎ」で業務が遅れます' },
-        { sel: '.evidence', text: '答え合わせです。緑が見抜いたところ、黄色が見落としたところ、紫が疑いすぎたところ。手帳の本物とも見比べてみましょう' },
-      ],
-      () => {},
     );
     on('[data-act=ok]', ok);
     setKeys((e) => {

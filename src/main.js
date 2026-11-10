@@ -154,10 +154,7 @@ game = new Game(STAGE1, DAY, S, {
   prompt: (text) => UI.prompt(text),
   // 手がかりを取った
   clue: (kind) => {
-    const lines = {
-      bookmark: [{ who: 'guard', text: '公式ブックマークを手に入れました! 手帳に記録しておきます({note}で見られます)' }],
-      ledger: [{ who: 'guard', text: '連絡先台帳を手に入れました! 山田さんの本当の連絡先が載っています' }],
-    }[kind] || [{ who: 'guard', text: `${CLUES[kind].name}を手に入れました! 手帳に記録しておきます。${CLUES[kind].hint}` }];
+    const lines = [{ who: 'guard', text: `${CLUES[kind].name}を手に入れた! 手帳({note})で見られます` }];
     if (learnedDay()) {
       // 遊び方を覚えた人には、止めずにひとことで
       UI.say({ who: 'guard', text: `${CLUES[kind].name}を手に入れた!` });
@@ -315,9 +312,8 @@ function startDay() {
   const extra =
     seen.learned && !seen.shootIntro
       ? [
-          { who: 'guard', text: '{name}さん、ガードに新しい力が付きました! {shoot}で弾を撃てます。長く押してから離すと、大きな「ため撃ち」です' },
-          { who: 'guard', text: '倒さずに置いていった敵は、社内に入り込んで夕方に見つかります。倒した敵が落とす「痕跡」を3つ集めると、判断シーンでヒントに使えます' },
-          { who: 'guard', text: '手帳は{note}から開けます' },
+          { who: 'guard', text: '新しい力! {shoot}で撃てる。長押しで、ため撃ち' },
+          { who: 'guard', text: '置いていった敵は、夕方の点検で見つかります' },
         ]
       : [];
   if (extra.length) {

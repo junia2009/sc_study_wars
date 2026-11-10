@@ -80,37 +80,30 @@ export const MONDAY = {
   // 朝: 先輩からの依頼(3つの基本動作は、オープニングムービーで先輩が説明している)
   intro: [
     { who: 'sys', text: '月曜 9:00 ── junia 商事 情報システム部' },
-    { who: 'kuroda', text: '……で、{name}だっけ。配属初日に悪いけど、いきなり仕事だ' },
-    { who: 'kuroda', text: '今週、取引先を名乗る詐欺メールが経理部に来てる。金曜の大口の支払いまで、経理部を守ってくれ' },
-    { who: 'guard', text: 'は、はじめまして! 見習い用 AI のガードです。がんばります……たぶん' },
-    { who: 'kuroda', text: '確かめるには「本物の情報」が要る。ネットワークの中で、手がかりを集めてこい' },
-    { who: 'kuroda', text: '経理の佐藤さんから相談が来たら、{name}が答えてやれ。……操作は、入口でガードに教われ。俺は寝る' },
-    { who: 'sys', text: '今日の任務: ①手がかり(公式ブックマーク・連絡先台帳)を集める ②経理部からの相談に答える ③出口のログアウトゲートまで行く' },
+    { who: 'kuroda', text: '{name}、初日から仕事だ。経理部を詐欺から守れ' },
+    { who: 'kuroda', text: '確かめるには「本物の情報」が要る。手がかりを集めてこい' },
+    { who: 'guard', text: 'AI のガードです! 操作は入口で教えます' },
   ],
   // 判断シーンの前のひとこと(時刻が進む)
   before: {
-    invoice: [{ who: 'sys', text: '10:30 ── 経理部の佐藤さんから相談が届いた' }],
+    invoice: [
+      { who: 'sys', text: '10:30 ── 佐藤さんから相談' },
+    ],
     bec: [
-      { who: 'sys', text: '14:00 ── 佐藤さんから、もう一度相談が届いた' },
-      { who: 'guard', text: 'また山田さんからのメールみたいです。……この人、すごく急いでるんですね!' },
+      { who: 'sys', text: '14:00 ── 佐藤さんから、また相談' },
     ],
     phish: [
-      { who: 'sys', text: '16:30 ── {name}あてにメールが届いた' },
-      { who: 'guard', text: '{name}さん、パスワードの期限が切れるって書いてあります! 大変です!' },
+      { who: 'sys', text: '16:30 ── {name}あてにメール' },
     ],
   },
   // ゴール(ログアウトゲート)に着いたら: 黒幕の登場
   boss: [
-    { who: 'sys', text: '17:00 ── ネットワークの奥に、見慣れない影が現れた' },
-    { who: 'angler', text: '……ほう。今日の獲物は、ずいぶん用心深いな' },
-    { who: 'anglerKnown', text: '我々は「フィッシャーズ」。俺はアングラー。今日はご挨拶代わりだ' },
-    { who: 'anglerKnown', text: '明日は撒き餌を変える。……お前たちの身内の顔で、釣ってやろう' },
-    { who: 'guard', text: 'ま、待ってください! ……行っちゃいました' },
+    { who: 'sys', text: '17:00 ── 見慣れない影が現れた' },
+    { who: 'angler', text: '我々は「フィッシャーズ」。明日は、身内の顔で釣ってやろう' },
   ],
   // 夕方の振り返り(評価のあと)
   outro: [
-    { who: 'kuroda', text: '「身内の顔」か……明日は上司や社長のなりすましが来るぞ' },
-    { who: 'kuroda', text: 'お疲れ。今日はもう帰れ。俺はこれから DNS を見る' },
+    { who: 'kuroda', text: '「身内の顔」……明日は社長のなりすましだな。お疲れ' },
   ],
   // 判断シーンの順番(地図の T の左から)と、そのときの時刻
   scenes: ['invoice', 'bec', 'phish'],
@@ -125,80 +118,72 @@ export const MONDAY = {
     {
       help: true,
       talk: [
-        { who: 'guard', text: 'ここは社内ネットワークの入口です。ガードは、{name}さんの操作で動きます' },
-        { who: 'guard', text: '{move}で左右に動きます。まずは右へ進んでみてください!' },
+        { who: 'guard', text: '{move}で移動。右へ進もう' },
       ],
     },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '段差です。{jump}でジャンプ! 長く押すほど高く跳べます' },
+        { who: 'guard', text: '{jump}でジャンプ。長押しで高く跳べる' },
       ],
     },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '光る結晶は「業務データ」です。拾うと仕事が片づいて、「業務の遅れ」が少し減ります', point: '#hud .gauge.delay' },
+        { who: 'guard', text: '結晶は「業務データ」。拾うと遅れが減る', point: '#hud .gauge.delay' },
       ],
     },
     {
       help: true,
-      // release: この説明が終わるまで、その組の敵はその場で待つ(説明より先に倒されないように)
       release: 'tutorial',
       talk: [
-        { who: 'guard', text: 'あっ、敵です! あれは詐欺メールが化けたもの。ぶつかると「漏洩リスク」がたまります', point: '#hud .gauge.leak' },
-        { who: 'guard', text: '{shoot}で弾を撃って撃退! 長く押してから離すと、大きな「ため撃ち」になります。上から踏んでも倒せます' },
-        { who: 'guard', text: '倒さずに置いていった敵は、社内に入り込みます。夕方にまとめて見つかって、漏洩リスクになるので、入口で止めましょう。ここは練習なので、ぶつかってもゲージは増えません' },
+        { who: 'guard', text: '敵だ! {shoot}で撃つか、上から踏む', point: '#hud .gauge.leak' },
+        { who: 'guard', text: '長押しで、ため撃ち。置いていった敵は夕方に見つかる' },
       ],
     },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '「!」のブロックは、下から頭で叩くと業務データが出てきます' },
+        { who: 'guard', text: '「!」ブロックは、下から叩く' },
       ],
     },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '穴の下は「本番環境」です。うっかり落ちると大事故……漏洩リスクがたまるので、跳び越えましょう' },
+        { who: 'guard', text: '穴の下は本番環境。落ちると漏洩!' },
       ],
     },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '練習はここまでです。最後に、画面の上の見方を説明しますね' },
-        { who: 'guard', text: '左上は時刻です。相談やメールが届くたびに進みます', point: '#hud-clock' },
-        { who: 'guard', text: '「漏洩」は漏洩リスク。詐欺に引っかかるとたまって、満タンになると障害報告書を書かされます', point: '#hud .gauge.leak' },
-        { who: 'guard', text: '「遅れ」は業務の遅れ。本物まで疑ったり、何でも人に任せたりするとたまって、満タンになると始末書です', point: '#hud .gauge.delay' },
-        { who: 'guard', text: '集めた手がかりは手帳に記録されます。{note}で、いつでも開けます。3つの基本動作も、手帳の「きほん」に書いておきました' },
-        { who: 'guard', text: '一時停止は{pause}です。では、いよいよ本番! 社内ポータルへ行きましょう' },
+        { who: 'guard', text: '左上は時刻', point: '#hud-clock' },
+        { who: 'guard', text: '漏洩が満タンで、障害報告書', point: '#hud .gauge.leak' },
+        { who: 'guard', text: '遅れが満タンで、始末書', point: '#hud .gauge.delay' },
+        { who: 'guard', text: '手帳は{note}、一時停止は{pause}' },
       ],
     },
-    { help: true, say: { who: 'guard', text: 'ここは社内ポータルです。公式ブックマークを探しましょう!' } },
-    { help: true, say: { who: 'guard', text: 'この先は経理部のファイルサーバーです。連絡先台帳は、階段の上にあるみたいです' } },
+    { help: true, say: { who: 'guard', text: '公式ブックマークを探そう!' } },
+    { help: true, say: { who: 'guard', text: '連絡先台帳は、階段の上!' } },
     {
       help: true,
       release: 'sort',
       talk: [
-        { who: 'guard', text: '経理部の受信箱に向かう「メール便」が来ます! 本物と偽物が、同じ姿で混ざっています' },
-        { who: 'guard', text: '頭の上の札は、差出人のドメインです。本物の山田さんは「sample-bussan」。連絡先台帳にも書いてあります' },
-        { who: 'guard', text: '本物は体で受け止めて届ける。偽物は上から踏んで撃退! 1文字違いに気をつけて' },
-        { who: 'guard', text: '跳び越えて素通りさせると、偽物はそのまま受信箱へ。本物は受け取りそこねます。全部、仕分けましょう!' },
+        { who: 'guard', text: 'メール便! 頭の札はドメイン。本物は sample-bussan' },
+        { who: 'guard', text: '本物は受け止める。偽物は撃つか踏む' },
       ],
     },
     { sortReport: true },
     {
       help: true,
       talk: [
-        { who: 'guard', text: 'あの「!」の付いた端末は、相談やメールが届いた合図です' },
-        { who: 'guard', text: '前を通ると「判断シーン」が始まります。集めた手がかりを使って、どう対応するかを決めましょう' },
+        { who: 'guard', text: '「!」の端末を通ると、判断シーン' },
       ],
     },
-    { say: { who: 'guard', text: 'もうすぐ夕方です。出口(ログアウトゲート)まであと少し!' } },
+    { say: { who: 'guard', text: 'もうすぐ夕方。出口へ!' } },
     {
       help: true,
       talk: [
-        { who: 'guard', text: 'あれが出口のログアウトゲートです。入ると、今日の仕事はおしまいです' },
+        { who: 'guard', text: 'ログアウトゲートで、今日はおしまい' },
       ],
     },
   ],
@@ -208,33 +193,30 @@ export const MONDAY = {
     pass: {
       help: true,
       talk: [
-        { who: 'guard', text: '新しい敵です! あれは「Password1!」。社内のルールは満たしているけど、推測されやすいパスワードの化身です' },
-        { who: 'guard', text: '近づくと跳びかかってきます(総当たり攻撃)。鎧は、弾なら3発、ため撃ちなら1発、踏めば1回で割れます' },
+        { who: 'guard', text: '「Password1!」。鎧は、ため撃ちか踏みつけで割れる' },
       ],
     },
-    soft: { help: true, say: { who: 'guard', text: '鎧が割れて、中身が出てきました! 逃げ足が速いので気をつけて' } },
+    soft: { help: true, say: { who: 'guard', text: '中身が逃げる! とどめを' } },
     virus: {
       help: true,
       talk: [
-        { who: 'guard', text: 'マルウェアです! 放っておくと、どんどん分裂して増えていきます' },
-        { who: 'guard', text: '増える前に、早く倒しましょう。見つけたら、すぐ対処が鉄則です' },
+        { who: 'guard', text: 'マルウェア! 放っておくと分裂する。早めに倒そう' },
       ],
     },
     bot: {
       help: true,
       talk: [
-        { who: 'guard', text: 'ボットです! 乗っ取られた機器が、空から襲ってきます' },
-        { who: 'guard', text: '「!」が出たら急降下の合図。よけてから、ジャンプして撃つか、上から踏みましょう' },
+        { who: 'guard', text: 'ボット! 「!」の後に急降下。ジャンプ撃ちか踏む' },
       ],
     },
     tail: {
       help: true,
       talk: [
-        { who: 'guard', text: '社員さんの後ろに、ぴったり付いて歩く人が……社員証がありません! 「共連れ」です' },
-        { who: 'guard', text: '本物の社員は、胸に青い社員証を下げています。社員証のない人だけ撃退! 本物の同僚を撃つと、仕事が止まります' },
+        { who: 'guard', text: '社員証のない人……共連れだ!' },
+        { who: 'guard', text: '胸に社員証がある本物は、撃たないで' },
       ],
     },
-    spam: { help: true, say: { who: 'guard', text: '迷惑メールの群れです! まとめて撃つと、連続撃退ボーナス!' } },
+    spam: { help: true, say: { who: 'guard', text: '迷惑メールの群れ! まとめて撃とう' } },
   },
 };
 

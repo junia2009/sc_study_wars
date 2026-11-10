@@ -72,39 +72,35 @@ export const TUESDAY = {
   clocks: { ceo: '11:00', mfaSetup: '15:00', boss: '17:00' },
   intro: [
     { who: 'sys', text: '火曜 9:00 ── 情報システム部' },
-    { who: 'kuroda', text: '昨日はよくやった。……アングラーは「身内の顔で釣る」と言ってたな' },
-    { who: 'kuroda', text: '上司や社長になりすまして、急ぎの頼みごとをしてくる手口だ。偉い人の名前を出されると、断りにくいだろ?' },
-    { who: 'kuroda', text: 'そういうときの盾が、社内ルールだ。人事部の掲示板に貼ってある。取ってこい' },
-    { who: 'guard', text: '今日は役員フロアにも行くんですね……緊張します' },
-    { who: 'sys', text: '今日の任務: ①社内ルールの紙を手に入れる ②認証ゲートを抜ける ③届いた依頼に答える' },
+    { who: 'kuroda', text: '今日は社長のなりすましが来る。社内ルールの紙を持っていけ' },
+    { who: 'guard', text: 'ルールは、断るための盾ですね!' },
   ],
   before: {
     ceo: [
-      { who: 'sys', text: '11:00 ── {name}あてに、社長からチャットが届いた' },
-      { who: 'guard', text: 'しゃ、社長からです! 急ぎって書いてあります!' },
+      { who: 'sys', text: '11:00 ── 社長からチャット!?' },
     ],
-    mfaSetup: [{ who: 'sys', text: '15:00 ── 黒田先輩からメールが届いた' }],
+    mfaSetup: [
+      { who: 'sys', text: '15:00 ── 黒田先輩からメール' },
+    ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── 社長室の監視カメラに、フードの影が映った' },
-    { who: 'anglerKnown', text: '社長の顔でも釣れないとはな。……ならば次は、餌に毒を仕込もう' },
-    { who: 'anglerKnown', text: '明日届く「添付ファイル」、開けずにいられるかな?' },
+    { who: 'sys', text: '17:00 ── 社長室の前に、フードの影' },
+    { who: 'anglerKnown', text: '次は、添付ファイルに毒を仕込もう' },
   ],
   outro: [
-    { who: 'kuroda', text: '偉い人の名前に負けなかったな。ルールは、断るための道具でもある' },
-    { who: 'kuroda', text: '明日は添付ファイルか。……拡張子の見方を、教えておかないとな' },
+    { who: 'kuroda', text: '偉い人の名前でも、ルールで断れ。明日は添付ファイルだ' },
   ],
   hints: [
-    { help: true, say: { who: 'guard', text: 'ここは人事部です。掲示板に「社内ルールの紙」があるはず!' } },
+    { help: true, say: { who: 'guard', text: '掲示板に、社内ルールの紙があるはず!' } },
     {
       help: true,
       talk: [
-        { who: 'guard', text: 'この先は「認証ゲート」です。パスワードの鍵と、スマホ。2つの要素がそろわないと開きません' },
-        { who: 'guard', text: 'パスワードだけでは開かないのが、多要素認証のしくみ。パスワードが盗まれても、スマホがなければ入れないんです' },
+        { who: 'guard', text: '認証ゲート: 鍵とスマホ、2つそろうと開く' },
+        { who: 'guard', text: 'パスワードだけじゃ開かない。それが多要素認証' },
       ],
     },
-    { say: { who: 'guard', text: 'ここが役員フロア……。社長室は、この奥です' } },
-    { say: { who: 'guard', text: 'もうすぐ夕方です。出口まであと少し!' } },
+    { say: { who: 'guard', text: '役員フロアだ。社長室はこの奥' } },
+    { say: { who: 'guard', text: 'もうすぐ夕方。出口へ!' } },
   ],
   sceneData: {
     ceo: {
@@ -266,41 +262,40 @@ export const WEDNESDAY = {
   clocks: { attach: '10:30', reuse: '13:00', boss: '17:00' },
   intro: [
     { who: 'sys', text: '水曜 9:00 ── 情報システム部' },
-    { who: 'kuroda', text: '今日は添付ファイルだ。開いた瞬間に動き出す「マルウェア」が仕込まれていることがある' },
-    { who: 'kuroda', text: '見分けるコツは、ファイル名のいちばん右の「拡張子」。メールサーバーに見分け表を置いておいた' },
-    { who: 'guard', text: 'ファイルの名前を、最後まで読めばいいんですね!' },
-    { who: 'sys', text: '今日の任務: ①拡張子の見分け表を手に入れる ②安全なファイルだけ開けて仕事を進める ③届いたメールに答える' },
+    { who: 'kuroda', text: '今日は添付ファイル。ファイル名のいちばん右を見ろ' },
+    { who: 'guard', text: '見分け表は、メールサーバーにあります!' },
   ],
   before: {
-    attach: [{ who: 'sys', text: '10:30 ── 佐藤さんから相談が届いた' }],
-    reuse: [{ who: 'sys', text: '13:00 ── 新しい勤怠システムの案内が届いた' }],
+    attach: [
+      { who: 'sys', text: '10:30 ── 佐藤さんから相談' },
+    ],
+    reuse: [
+      { who: 'sys', text: '13:00 ── 勤怠システムの案内' },
+    ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── メールサーバーのログに、知らない足あとが残っていた' },
-    { who: 'anglerKnown', text: '毒入りの餌も見抜くか。……ならば、声で釣るまでだ' },
-    { who: 'anglerKnown', text: '明日は電話が鳴る。在宅で一人のときにな' },
+    { who: 'sys', text: '17:00 ── ログに知らない足あと' },
+    { who: 'anglerKnown', text: '次は、声で釣る。電話を待っていろ' },
   ],
   outro: [
-    { who: 'kuroda', text: '拡張子は、ファイル名のいちばん右。それだけで防げる被害は多い' },
-    { who: 'kuroda', text: '明日は在宅勤務の日か。……電話には気をつけろ' },
+    { who: 'kuroda', text: 'いちばん右の拡張子。それだけで防げる被害は多い' },
   ],
   hints: [
-    { help: true, say: { who: 'guard', text: 'メールサーバーです。拡張子の見分け表を探しましょう!' } },
+    { help: true, say: { who: 'guard', text: '拡張子の見分け表を探そう!' } },
     {
       help: true,
       talk: [
-        { who: 'guard', text: '浮いている箱は「添付ファイル」です。下から叩くと開きます' },
-        { who: 'guard', text: '名札のファイル名を、いちばん右まで読んで! 「.pdf.exe」のように拡張子が2つ並ぶもの、.exe .scr、マクロ付きの .xlsm は危険です' },
-        { who: 'guard', text: '安全なファイルを3つ開けると、仕事が進んでゲートが開きます。危険なファイルを開けると、マルウェアが飛び出します!' },
+        { who: 'guard', text: '箱は添付ファイル。下から叩くと開く' },
+        { who: 'guard', text: 'いちばん右が .pdf .docx .xlsx なら安全。3つ開ければ扉が開く' },
       ],
     },
     { credential: true },
-    { say: { who: 'guard', text: 'もうすぐ夕方です。出口まであと少し!' } },
+    { say: { who: 'guard', text: 'もうすぐ夕方。出口へ!' } },
   ],
   sceneData: {
     attach: {
       from: 'sato',
-      ask: '山田さんから請求書が届いたんですけど、添付ファイルを開いてもいいですか?',
+      ask: '請求書の添付、開いていい?',
       time: 0,
       clues: ['extlist'],
       mock: {
@@ -456,38 +451,36 @@ export const THURSDAY = {
   scenes: ['vishing', 'vpn'],
   clocks: { vishing: '10:30', vpn: '15:00', boss: '17:00' },
   intro: [
-    { who: 'sys', text: '木曜 9:00 ── 在宅勤務(自宅)' },
-    { who: 'kuroda', text: '(オンライン会議)今日は在宅だな。……一人のときを狙って、電話でパスワードを聞き出す手口がある' },
-    { who: 'kuroda', text: 'それと、パスワードを盗んだやつが、スマホに承認の通知を何度も送ってくる手口もだ。根負けして押すのを待ってる' },
-    { who: 'kuroda', text: '情シスの内線番号表は、在宅用の回線にも置いてある。……俺はこれから寝る' },
-    { who: 'guard', text: '先輩、在宅だといつもより眠そうです……' },
-    { who: 'sys', text: '今日の任務: ①内線番号表を手に入れる ②承認の通知を見分ける ③電話とメールに答える' },
+    { who: 'sys', text: '木曜 9:00 ── 在宅勤務' },
+    { who: 'kuroda', text: '(オンライン)電話でパスワードを聞くやつと、承認の通知を連打するやつが来る' },
+    { who: 'kuroda', text: '内線番号表は回線に置いた。……俺は寝る' },
   ],
   before: {
-    vishing: [{ who: 'sys', text: '10:30 ── 知らない番号から、電話が鳴った' }],
-    vpn: [{ who: 'sys', text: '15:00 ── 情報システム部から、お知らせのメールが届いた' }],
+    vishing: [
+      { who: 'sys', text: '10:30 ── 知らない番号から着信' },
+    ],
+    vpn: [
+      { who: 'sys', text: '15:00 ── 情シスからお知らせ' },
+    ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── 在宅回線の向こうから、笑い声が聞こえた' },
-    { who: 'anglerKnown', text: '声にも、通知にも釣られないか。……いいだろう。明日は本番だ' },
-    { who: 'anglerKnown', text: '明日は、本物の取引先から届くメールで釣る。本物のアドレスでな' },
+    { who: 'sys', text: '17:00 ── 回線の向こうで笑い声' },
+    { who: 'anglerKnown', text: '明日は、本物のアドレスで釣る' },
   ],
   outro: [
-    { who: 'kuroda', text: '自分で操作していない承認は、押さない。電話は、こっちからかけ直す。いい日だった' },
-    { who: 'kuroda', text: '「本物のアドレスで」……取引先のアカウントを乗っ取る気か。明日は支払いの日だぞ' },
+    { who: 'kuroda', text: '押してない承認は拒否。電話はかけ直す。明日は支払いの日だ' },
   ],
   hints: [
-    { help: true, say: { who: 'guard', text: '在宅勤務の回線です。内線番号表を探しましょう!' } },
+    { help: true, say: { who: 'guard', text: '内線番号表を探そう!' } },
     {
       help: true,
       release: 'push',
       talk: [
-        { who: 'guard', text: 'ここから、スマホに「承認しますか?」の通知が届きます。画面の上に出る通知を見て、承認か拒否を選んでください' },
-        { who: 'guard', text: 'ゲートを開けるには、ログイン端末に触れて「自分で」ログインし、そのとき届く通知だけを承認します' },
-        { who: 'guard', text: '自分で操作していないのに届いた通知は、パスワードを盗んだ誰かのログイン。拒否です! 放っておくと消えます' },
+        { who: 'guard', text: 'スマホに「承認しますか?」が来ます' },
+        { who: 'guard', text: 'ログイン端末に触れたときだけ承認。ほかは拒否!' },
       ],
     },
-    { say: { who: 'guard', text: 'もうすぐ夕方です。出口まであと少し!' } },
+    { say: { who: 'guard', text: 'もうすぐ夕方。出口へ!' } },
   ],
   sceneData: {
     vishing: {
@@ -642,12 +635,12 @@ export const FRIDAY = {
     drop: 2.4,
     swoop: 4,
     talk: [
-      { who: 'anglerKnown', text: 'よくここまで来たな。だが、支払いはいただく!' },
-      { who: 'guard', text: 'アングラーです! 降りてきたところを撃つか、上から踏みましょう!' },
+      { who: 'anglerKnown', text: 'よくここまで来たな!' },
+      { who: 'guard', text: '降りてきたら、撃つか踏む!' },
     ],
     defeat: [
-      { who: 'anglerKnown', text: 'ぐっ……今日のところは、引いてやる' },
-      { who: 'guard', text: 'やりました! 出口への道が開きました!' },
+      { who: 'anglerKnown', text: 'ぐっ……今日は引いてやる' },
+      { who: 'guard', text: '出口が開いた!' },
     ],
   },
   cards: ['takeover'],
@@ -655,45 +648,42 @@ export const FRIDAY = {
   clocks: { takeover: '14:00', payment: '16:00', boss: '17:00' },
   intro: [
     { who: 'sys', text: '金曜 9:00 ── 大口の支払いの日' },
-    { who: 'kuroda', text: 'いよいよだ。今日、サンプル物産へ大口の支払いがある' },
-    { who: 'kuroda', text: 'アングラーは「本物のアドレスで釣る」と言った。取引先のアカウントを乗っ取って、そこから送ってくるつもりだ' },
-    { who: 'kuroda', text: 'そうなると、アドレスを見ても見抜けない。見るべきは中身……特に、振込先の口座だ。台帳を持っていけ' },
-    { who: 'guard', text: 'アドレスが本物でも、偽物……。こわいです' },
-    { who: 'sys', text: '今日の任務: ①連絡先台帳を手に入れる ②メール便を仕分ける ③支払いを守り抜く' },
+    { who: 'kuroda', text: '取引先のアカウントが乗っ取られる。アドレスは本物でも、口座を見ろ' },
+    { who: 'guard', text: '連絡先台帳を持っていきます!' },
   ],
   before: {
     takeover: [
-      { who: 'sys', text: '14:00 ── 佐藤さんから相談が届いた' },
-      { who: 'guard', text: '今度は、アドレスが本物です……!' },
+      { who: 'sys', text: '14:00 ── 佐藤さんから相談。アドレスは本物……' },
     ],
-    payment: [{ who: 'sys', text: '16:00 ── 部長から、支払いの最終確認が届いた' }],
+    payment: [
+      { who: 'sys', text: '16:00 ── 支払いの最終確認' },
+    ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── 支払いは、無事に本物の口座へ届いた' },
-    { who: 'kuroda', text: 'よし……! 今週の目標は達成だ。よくやった、{name}' },
-    { who: 'anglerKnown', text: '(通信)……フィッシャーズは、このままでは終わらん。週末を楽しみにしていろ' },
+    { who: 'sys', text: '17:00 ── 支払いは、本物の口座へ届いた' },
+    { who: 'kuroda', text: 'よくやった、{name}' },
+    { who: 'anglerKnown', text: '(通信)……週末を楽しみにしていろ' },
   ],
   outro: [
-    { who: 'kuroda', text: '週末……休みで人がいないときを狙う気か。悪いが、明日は休日出勤だ' },
-    { who: 'guard', text: '休日出勤……! でも、がんばります!' },
+    { who: 'kuroda', text: '週末か……悪いが、明日は休日出勤だ' },
   ],
   hints: [
-    { say: { who: 'guard', text: '今日は支払いの日。まずは連絡先台帳を!' } },
+    { say: { who: 'guard', text: '連絡先台帳を取りにいこう!' } },
     {
       help: true,
       release: 'sort',
       talk: [
-        { who: 'guard', text: 'またメール便です! でも今日は、ドメインは全部本物の「sample-bussan」……乗っ取られているんです' },
-        { who: 'guard', text: '札の2行目、「口座」を見てください。台帳の本物は「○○銀行 本店 7654321」。違う口座のメール便が偽物です!' },
+        { who: 'guard', text: 'メール便! 今日はドメインが全部本物' },
+        { who: 'guard', text: '札の口座を台帳と比べて。違えば偽物' },
       ],
     },
     { sortReport: true },
-    { say: { who: 'guard', text: 'この先はサーバー室……アングラーの気配がします' } },
+    { say: { who: 'guard', text: 'この先、アングラーの気配……' } },
   ],
   sceneData: {
     takeover: {
       from: 'sato',
-      ask: '山田さんから、振込先の変更が来ました。今度はアドレスも本物なんです……',
+      ask: '振込先の変更が。アドレスは本物です……',
       time: 60,
       clues: ['ledger'],
       mock: {
@@ -751,7 +741,7 @@ export const FRIDAY = {
     },
     payment: {
       from: 'sato',
-      ask: '部長から、今日の大口の支払いの最終確認です。承認していいですか?',
+      ask: '大口の支払い、処理していい?',
       time: 0,
       clues: ['ledger'],
       mock: {
@@ -846,39 +836,35 @@ export const SATURDAY = {
   clocks: { ransom: '10:00', support: '15:00', boss: '17:00' },
   intro: [
     { who: 'sys', text: '土曜 9:30 ── 休日のオフィス' },
-    { who: 'kuroda', text: '……来たか。休みの日は、気づく人がいない。だから狙われる' },
-    { who: 'kuroda', text: 'もしファイルが暗号化される「ランサムウェア」が来たら、手順書どおりに動け。サーバー室に置いてある' },
-    { who: 'kuroda', text: 'それと、バックアップだ。暗号化されても、バックアップがあれば戻せる' },
-    { who: 'guard', text: 'ば、バックアップ……大事ですね!' },
-    { who: 'sys', text: '今日の任務: ①初動対応の手順書を手に入れる ②暗号化から逃げ切る ③正しく初動対応する' },
+    { who: 'kuroda', text: '休みの日は狙われる。暗号化が来たら、手順書どおりに動け' },
+    { who: 'kuroda', text: 'バックアップ地点も忘れるな' },
   ],
   before: {
     ransom: [
-      { who: 'sys', text: '10:00 ── サーバーの画面が、真っ赤に変わった' },
-      { who: 'guard', text: 'た、大変です! 画面に脅しの文章が……!' },
+      { who: 'sys', text: '10:00 ── サーバーの画面が真っ赤に!' },
     ],
-    support: [{ who: 'sys', text: '15:00 ── 「セキュリティ復旧センター」を名乗る電話が鳴った' }],
+    support: [
+      { who: 'sys', text: '15:00 ── 「復旧センター」から電話' },
+    ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── 暗号化は止まり、バックアップから復旧が始まった' },
-    { who: 'kuroda', text: '初動が早かったから、被害は最小限だ。……ログに、アングラーの通信先が残っていた' },
-    { who: 'kuroda', text: '明日、フィッシャーズの拠点をたどる。日曜で悪いな' },
+    { who: 'sys', text: '17:00 ── バックアップから復旧開始' },
+    { who: 'kuroda', text: 'ログに通信先が残ってた。明日、拠点をたどる' },
   ],
   outro: [
     { who: 'guard', text: '明日で、全部終わらせましょう!' },
-    { who: 'kuroda', text: 'ああ。……今夜はちゃんと寝ろよ。俺は寝ないけど' },
   ],
   hints: [
-    { help: true, say: { who: 'guard', text: '休日のサーバー室です。初動対応の手順書は、すぐそこに!' } },
+    { help: true, say: { who: 'guard', text: '初動対応の手順書は、すぐそこ!' } },
     {
       help: true,
       release: 'chase',
       talk: [
-        { who: 'guard', text: 'う、後ろから暗号化が迫ってきます! 追いつかれると、データが暗号化されます!' },
-        { who: 'guard', text: '途中のバックアップ地点に触れておくと、追いつかれても、そこから復旧できて被害が小さく済みます。走って!' },
+        { who: 'guard', text: '暗号化が迫ってくる! 走って!' },
+        { who: 'guard', text: 'バックアップ地点に触れておくと、被害が小さい' },
       ],
     },
-    { endChase: true, say: { who: 'guard', text: '逃げ切りました……! 暗号化の広がりが止まりました' } },
+    { endChase: true, say: { who: 'guard', text: '逃げ切った!' } },
   ],
   sceneData: {
     ransom: {
@@ -1055,18 +1041,18 @@ export const SUNDAY = {
     drop: 2.2,
     swoop: 3.8,
     talk: [
-      { who: 'anglerKnown', text: 'ここまで来たか、見習い。……だが、ここが私の釣り場だ!' },
-      { who: 'guard', text: '最後です! 降りてきたところを撃つか、踏んで!' },
+      { who: 'anglerKnown', text: 'ここが私の釣り場だ!' },
+      { who: 'guard', text: '降りてきたら、撃つか踏む!' },
     ],
     phase2: {
       talk: [
-        { who: 'anglerKnown', text: 'くっ……ならば、乗っ取った機器も総動員だ!' },
-        { who: 'guard', text: '動きが速くなりました! 着地のときに床を這う釣り糸が来ます。跳んでよけて!' },
+        { who: 'anglerKnown', text: '機器を総動員だ!' },
+        { who: 'guard', text: '床の釣り糸は、跳んでよけて!' },
       ],
     },
     defeat: [
-      { who: 'anglerKnown', text: 'ば、馬鹿な……釣り針に、一度もかからないとは……' },
-      { who: 'anglerKnown', text: '……覚えておけ。人が「確かめる」ことをやめたとき、我々はまた戻ってくる' },
+      { who: 'anglerKnown', text: '釣り針に、一度もかからないとは……' },
+      { who: 'anglerKnown', text: '人が確かめるのをやめたとき、また戻ってくる' },
     ],
   },
   cards: ['culture'],
@@ -1074,40 +1060,33 @@ export const SUNDAY = {
   clocks: { threat: '13:00', boss: '17:00' },
   intro: [
     { who: 'sys', text: '日曜 10:00 ── 情報システム部' },
-    { who: 'kuroda', text: '昨日のログから、フィッシャーズの拠点の入口が分かった。ただし、偽の入口がいくつも並んでいる' },
-    { who: 'kuroda', text: '本物の入口は、うちの公式ブックマークと同じ URL だけだ。1文字でも違えば偽物' },
-    { who: 'kuroda', text: '今週覚えたことを、全部使え。……行ってこい、{name}' },
-    { who: 'guard', text: 'はい! 最後まで、確かめていきます!' },
-    { who: 'sys', text: '今日の任務: ①本物の入口を選んで進む ②黒幕アングラーを倒す' },
+    { who: 'kuroda', text: '拠点の入口は偽物だらけだ。ブックマークと同じ URL だけが本物' },
+    { who: 'kuroda', text: '行ってこい、{name}' },
   ],
   before: {
     threat: [
-      { who: 'sys', text: '13:00 ── {name}あてに、黒幕からメールが届いた' },
-      { who: 'guard', text: 'お、脅しのメールです……!' },
+      { who: 'sys', text: '13:00 ── 黒幕からメール' },
     ],
   },
   boss: [
-    { who: 'sys', text: '17:00 ── フィッシャーズの拠点は、警察と業者に引き渡された' },
-    { who: 'kuroda', text: '……終わったな。お疲れ、{name}' },
-    { who: 'kuroda', text: '今週、障害報告書はゼロ。誰にも褒められない、最高の仕事だ' },
-    { who: 'kuroda', text: '来週から、見習いは卒業だ。情報システム部へ、ようこそ' },
-    { who: 'guard', text: 'やった……! {name}さん、来週からもよろしくお願いします!' },
+    { who: 'sys', text: '17:00 ── 拠点は警察に引き渡された' },
+    { who: 'kuroda', text: '障害報告書ゼロ。誰にも褒められない、最高の仕事だ' },
+    { who: 'kuroda', text: '来週から見習いは卒業だ。ようこそ、情シスへ' },
   ],
   outro: [
-    { who: 'sys', text: '── 一週間、おつかれさまでした ──' },
-    { who: 'kuroda', text: '最後にひとつ。詐欺は、見抜けなくても負けじゃない。迷ったら相談、やったら報告。それができる職場が、いちばん強い' },
+    { who: 'kuroda', text: '見抜けなくても負けじゃない。迷ったら相談、やったら報告' },
   ],
   hints: [
-    { say: { who: 'guard', text: 'フィッシャーズの拠点へ向かいます。まずは公式ブックマークを!' } },
+    { say: { who: 'guard', text: 'まずは公式ブックマークを!' } },
     {
       help: true,
       talk: [
-        { who: 'guard', text: 'ここからは「URL の扉」が並んでいます。扉の上の URL を、手帳のブックマークと1文字ずつ見比べて' },
-        { who: 'guard', text: '本物の扉の前で B ボタン(X キー)を押すと入れます。偽物に入ると、情報を盗まれて押し戻されます' },
+        { who: 'guard', text: '扉の URL を、ブックマークと見比べて' },
+        { who: 'guard', text: '本物の扉の前で{shoot}を押すと入れる' },
       ],
     },
-    { say: { who: 'guard', text: 'この先に、アングラーがいます……!' } },
-    { say: { who: 'guard', text: '……静かになりました。出口へ行きましょう' } },
+    { say: { who: 'guard', text: 'この先に、アングラーが……' } },
+    { say: { who: 'guard', text: '静かになった。出口へ!' } },
   ],
   sceneData: {
     threat: {
