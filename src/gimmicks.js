@@ -311,6 +311,7 @@ export const gimmickMethods = {
     if (!b.awake) {
       if (b.x < this.camX + this.vw - 8) {
         b.awake = true;
+        this.hooks.music?.('boss');
         b.state = 'hover';
         b.t = 0;
         if (cfg.talk) {
@@ -411,6 +412,7 @@ export const gimmickMethods = {
     b.dead = true;
     this.hooksShot = [];
     this.kills++;
+    this.hooks.music?.(this.day.id);
     sfx.clear();
     if (this.day.barrier === 'boss') this.openBarrier('アングラーを追い払った! 出口への道が開いた');
     if (cfg.defeat) {

@@ -15,6 +15,9 @@ export function initAudio() {
 export function setMuted(v) {
   muted = v;
 }
+export function audioCtx() {
+  return ctx;
+}
 export function isMuted() {
   return muted;
 }

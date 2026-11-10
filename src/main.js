@@ -2,6 +2,7 @@
 import { buildSprites, spriteURL } from './sprites.js';
 import { initInput, pollPad, setGameInput, clearPressed, held } from './input.js';
 import { initAudio, setMuted, isMuted } from './audio.js';
+import { playMusic, startPending, setMusicMuted } from './music.js';
 import { Game, VIEW_W, VIEW_H } from './game.js';
 import { RES } from './sprites.js';
 import { STAGE1 } from '../data/stage1.js';
@@ -147,6 +148,7 @@ store.set('scsw.weapons', ownedWeapons);
 const learnedDay = () => !!seen[`learned_${DAY.id}`] || (DAY.id === 'monday' && !!seen.learned);
 game = new Game(STAGE1, DAY, S, {
   hud: (gm) => UI.updateHud(gm),
+  music: (name) => playMusic(name),
   banner: (text, tone) => UI.banner(text, tone),
   say: (line) => UI.say(line),
   prompt: (text) => UI.prompt(text),
@@ -211,6 +213,7 @@ game = new Game(STAGE1, DAY, S, {
     UI.prompt(null);
     UI.clearPushes();
     UI.hideOverlay();
+    playMusic(null);
     setTimeout(() => UI.showReport(gm, { onRetry: startDay, onTitle: title }), 500);
   },
   // ログアウトゲートに着いた: 黒幕 → 振り返り
@@ -257,6 +260,7 @@ function review(gm) {
       : { label: `${nextDay.day}へ`, text: `次は${nextDay.day}: ${nextDay.theme}` },
     onNext: last ? ending : () => playDay(dayIndex + 1),
   };
+  playMusic('review');
   UI.talk(DAY.outro, () => UI.showReview(sum, opts));
 }
 
@@ -305,6 +309,7 @@ function startDay() {
   game.reset();
   UI.prompt(null);
   UI.clearPushes();
+  playMusic(DAY.id);
   pause();
   // 前から遊んでいる人には、新しく増えたショットを一度だけ知らせる
   const extra =
@@ -325,6 +330,7 @@ function title() {
   mode = 'title';
   setGameInput(false);
   UI.clearPushes();
+  playMusic('title');
   UI.prompt(null);
   game.reset();
   const cont = progress.unlocked;
@@ -354,6 +360,7 @@ function title() {
     onCards: () => cards(title),
     onMute: () => {
       setMuted(!isMuted());
+      setMusicMuted(isMuted());
       store.set('scsw.muted', isMuted());
       title();
     },
@@ -376,6 +383,7 @@ function pauseMenu() {
     onTitle: title,
     onMute: () => {
       setMuted(!isMuted());
+      setMusicMuted(isMuted());
       store.set('scsw.muted', isMuted());
       mode = 'play';
       pauseMenu();
@@ -407,7 +415,15 @@ function cards(back) {
 
 fit();
 addEventListener('touchstart', () => setTimeout(fit, 0), { once: true, passive: true });
-initInput(() => initAudio());
+initInput(() => {
+  initAudio();
+  startPending();
+});
+// マウスで押した場合も、最初の操作で音を使えるようにする
+addEventListener('pointerdown', () => {
+  initAudio();
+  startPending();
+}, { passive: true });
 title();
 window.scsw = game; // 動作確認用(ブラウザの開発ツールから状態を見られる)
 window.__held = held;

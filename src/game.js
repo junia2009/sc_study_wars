@@ -863,10 +863,14 @@ export class Game {
           this.released[h.line.release] = true;
           if (h.line.release === 'chase' && this.chase) {
             this.chase.active = true;
+            this.hooks.music?.('chase');
             this.chase.x = p.x - 9 * T;
           }
         }
-        if (h.line?.endChase && this.chase) this.chase.active = false;
+        if (h.line?.endChase && this.chase) {
+          this.chase.active = false;
+          this.hooks.music?.(this.day.id);
+        }
         const learned = this.hooks.learned?.();
         if (h.line?.credential) {
           this.credentialEvent();
