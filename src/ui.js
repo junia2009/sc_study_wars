@@ -966,7 +966,7 @@ export function showCards(owned, { cardImg, onBack }) {
     const src = c.sources
       .map((s) => (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>` : esc(s.name)))
       .join('、');
-    const pending = c.sources.some((s) => !s.url);
+    const pending = c.sources.some((s) => !s.url || !s.checked);
     return `<article class="card">
       <header><img src="${cardImg(c)}" alt="" width="48" height="48"><div><p class="no">No.${i + 1}</p><h3>${esc(c.name)}</h3></div></header>
       <p>${esc(c.what)}</p>
@@ -976,7 +976,7 @@ export function showCards(owned, { cardImg, onBack }) {
       <p>${esc(c.action)}</p>
       <h4>やってしまったら</h4>
       <p>${esc(c.ifDone)}</p>
-      <p class="src">出典: ${src}${pending ? '(リンクと確認日は準備中)' : ''}</p>
+      <p class="src">出典: ${src}${pending ? '(内容の確認日は準備中)' : ''}</p>
     </article>`;
   }).join('');
   show(

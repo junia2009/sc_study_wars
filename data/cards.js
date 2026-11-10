@@ -3,6 +3,7 @@
 // 文章は、社内の朝礼や注意喚起にそのまま使えるくらいの短さにする。
 // 数字は、出典を開いて確かめたものだけを書く(今はひとつも書いていない)。
 // sources の url と checked(確かめた年月)は、公開前に出典を開いて埋めること。
+// url は検索結果で公式ページの場所を確かめたもの。checked が null のものは、まだページの中身を開いて確かめていない。
 
 // 月曜: bec・phishing・verify / 火曜: ceo・mfa・tailgate / 水曜: malware・reuse / 木曜: vishing・push
 // 金曜: takeover / 土曜: ransom / 日曜: culture
@@ -21,7 +22,7 @@ export const CARDS = [
     ],
     action: '振込先の変更は、メールに書かれていない、以前から登録している連絡先で本人に確かめる。',
     ifDone: 'すぐに上司・経理・情報システム部門に報告し、振込先の金融機関にも連絡する。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'phishing',
@@ -34,8 +35,8 @@ export const CARDS = [
     action: 'ブックマークや公式アプリから開く。ログインの前に URL を確かめる。',
     ifDone: '入力したパスワードをすぐに変え、同じパスワードを使っているサービスも変える。会社のアカウントなら報告する。',
     sources: [
-      { name: '警察庁「フィッシング対策」', url: null, checked: null },
-      { name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null },
+      { name: '警察庁「フィッシング対策」', url: 'https://www.npa.go.jp/bureau/cyber/countermeasures/phishing.html', checked: null },
+      { name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null },
     ],
   },
   {
@@ -48,7 +49,7 @@ export const CARDS = [
     signs: ['送り主・URL・返信先を、手元の本物(連絡先台帳・ブックマーク)と見比べたか', 'メールに書かれた連絡先やリンクではなく、別の道で確かめたか'],
     action: '取引先の連絡先や、よく使うサービスのブックマークを、日頃から手元にまとめておく。迷ったら一人で決めずに相談する。',
     ifDone: 'うっかりやってしまったら、隠さずすぐに報告する。早く止めるほど、被害は小さくなる。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'reuse',
@@ -61,7 +62,7 @@ export const CARDS = [
     action: 'サービスごとに別のパスワードにする。覚えきれない分は、パスワード管理ツールに任せる。',
     ifDone: '使い回していたパスワードをすぐに変え、ログインの履歴を確かめる。会社のアカウントなら、情報システム部門に報告する。',
     sources: [
-      { name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null },
+      { name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null },
       { name: 'NISC「インターネットの安全・安心ハンドブック」', url: null, checked: null },
     ],
   },
@@ -87,7 +88,7 @@ export const CARDS = [
     signs: ['ギフトカード・電子マネーの購入を頼まれる', '社外のアカウントやいつもと違う連絡手段から届く', '「内密に」「至急」で、相談させないようにしてくる'],
     action: '社内ルールに合わない依頼は断ってよい。本人には、内線や対面など別の道で確かめる。',
     ifDone: 'カードの番号を送ってしまったら、すぐに発行元と情報システム部門に連絡する。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'malware',
@@ -99,7 +100,7 @@ export const CARDS = [
     signs: ['「請求書.pdf.exe」のように拡張子が2つ並ぶ', '.exe .scr などの実行ファイルが届く', '開くと「マクロを有効にしてください」と出る'],
     action: 'ファイル名のいちばん右の拡張子を見る。怪しいファイルは開かず、消す前に報告する。',
     ifDone: '開いてしまったら、ネットワークから切り離して、すぐに報告する。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'vishing',
@@ -111,7 +112,7 @@ export const CARDS = [
     signs: ['非通知や知らない番号から、情シス・サポートを名乗る', '「今すぐ」「止まります」と急かす', 'パスワードや認証コードを聞いてくる'],
     action: 'いったん切って、手元の内線番号表などの番号から、こちらからかけ直す。パスワードは誰にも教えない。',
     ifDone: '教えてしまったら、すぐにパスワードを変えて報告する。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'push',
@@ -135,7 +136,7 @@ export const CARDS = [
     signs: ['本物のアドレスから、振込先の変更が届く', '「電話に出られない」「メールで返信を」と、別の道をふさぐ'],
     action: 'アドレスが本物でも、振込先の変更は台帳の電話番号で必ず確かめる。',
     ifDone: '振り込んでしまったら、すぐに金融機関・上司・情報システム部門に連絡する。取引先にも乗っ取りを知らせる。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'ransom',
@@ -148,8 +149,8 @@ export const CARDS = [
     action: 'ネットワークから切り離し、電源は切らずにすぐ報告する。身代金は払わない。日頃からバックアップを、つながっていない場所にも取っておく。',
     ifDone: '「復旧業者」を名乗る頼んでいない連絡は、二度目の詐欺を疑う。復旧は、契約している業者と進める。',
     sources: [
-      { name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null },
-      { name: '警察庁「ランサムウェア被害防止対策」', url: null, checked: null },
+      { name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null },
+      { name: '警察庁「ランサムウェア被害防止対策」', url: 'https://www.npa.go.jp/bureau/cyber/countermeasures/ransom.html', checked: null },
     ],
   },
   {
@@ -162,7 +163,7 @@ export const CARDS = [
     signs: ['「誰にも言うな」「今すぐ」と言われたら、それ自体が危険の合図'],
     action: '確かめ方(台帳・ブックマーク・内線番号・手順書)を日頃から手元にそろえ、迷ったら相談する。',
     ifDone: '報告してくれた人を責めない。早い報告ほど被害は小さくなる。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
   {
     id: 'tailgate',
@@ -174,7 +175,7 @@ export const CARDS = [
     signs: ['社員証を身に付けていない人が、扉が閉まる前に入ってくる', '「忘れてしまって」「両手がふさがって」と、開けてもらおうとする'],
     action: '自分の社員証で入るとき、後ろの人を一緒に通さない。見かけない人には声をかけ、受付や総務に案内する。',
     ifDone: '不審な人を通してしまったら、すぐ総務・警備に知らせる。',
-    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威 2026」', url: 'https://www.ipa.go.jp/security/10threats/10threats2026.html', checked: null }],
   },
 ];
 

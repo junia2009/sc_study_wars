@@ -427,6 +427,7 @@ addEventListener('pointerdown', () => {
 title();
 window.scsw = game; // 動作確認用(ブラウザの開発ツールから状態を見られる)
 window.__held = held;
+Object.defineProperty(window, '__mode', { get: () => mode }); // 動作確認用
 
 // ---- ループ(1/60 秒きざみで進めて、端末の速さに左右されないようにする) ----
 const STEP = 1 / 60;
