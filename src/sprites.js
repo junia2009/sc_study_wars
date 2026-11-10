@@ -50,6 +50,7 @@ export function buildSprites() {
     soft: [pair(A.soft(0)), pair(A.soft(1))],
     virus: [pair(A.virus(0)), pair(A.virus(1))],
     spam: [pair(A.spam(0)), pair(A.spam(1))],
+    bot: [pair(A.bot(0)), pair(A.bot(1))],
     groundTop: [toCanvas(A.ground(true, 0)), toCanvas(A.ground(true, 1))],
     ground: [toCanvas(A.ground(false, 0)), toCanvas(A.ground(false, 1))],
     block: toCanvas(A.block()),

@@ -79,6 +79,7 @@ export class Game {
           case 'p': this.enemies.push(this.enemy('pass', px + 2, py + 6)); break;
           case 'M': mails.push(this.enemy('mail', px + 2, py + 6)); break;
           case 'v': this.enemies.push(this.enemy('virus', px + 2, py + 6)); break;
+          case 'b': this.enemies.push(this.enemy('bot', px + 2, py + 6)); break;
           case 's': this.spawners.push({ x: px, y: py, n: 5, t: 0, on: false }); break;
           case 'o': this.coins.push({ x: px + 4, y: py + 4, w: 8, h: 8 }); break;
           case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: this.day.scenes[ti++], used: false }); break;
@@ -164,10 +165,11 @@ export class Game {
 
   enemy(kind, x, y) {
     const e = { ...body(x, y, 12, 10), kind, dir: -1, speed: kind === 'phish' ? 26 : 22, dead: false, awake: false, flash: 0, hp: 1, t: 0 };
-    if (kind === 'pass') e.hp = 2; // 鎧: 弾なら2発(ためた弾なら1発)、踏むなら1回で割れる
-    if (kind === 'virus') Object.assign(e, { speed: 30, gen: 0, split: 5 });
+    if (kind === 'pass') Object.assign(e, { hp: 3, hopT: 1 + Math.random() }); // 鎧: 弾なら3発(ため撃ちなら1発)、踏めば1回で割れる。近づくと跳びかかる
+    if (kind === 'virus') Object.assign(e, { speed: 30, gen: 0, split: 4 });
     if (kind === 'spam') Object.assign(e, { w: 8, h: 7, y: y + 3, speed: 62 });
     if (kind === 'phish') e.throwT = 1.2 + Math.random();
+    if (kind === 'bot') Object.assign(e, { homeX: x, fly: true, hp: 2, speed: 34, baseY: y - 3 * T, y: y - 3 * T, state: 'patrol', st: 0 });
     return e;
   }
 
@@ -344,7 +346,21 @@ export class Game {
   }
 
   // 敵に当てた(弾 dmg / 踏みつけ)。倒したら true
-  hitEnemy(e, dmg, how) {
+  hitEnemy(e, dmg, how, shot) {
+    // フィッシングは「なりすましの盾」で、正面からの小さい弾をはじく(釣り針を投げる瞬間だけ盾が下がる)
+    if (e.kind === 'phish' && e.gate !== 'tutorial' && how === 'shot' && shot && Math.sign(shot.vx) === -e.dir && !(e.throwT < 0.45 && e.throwT > 0)) {
+      sfx.bump();
+      this.floats.push({ x: e.x + 6, y: e.y - 6, text: 'ガード!', life: 0.5 });
+      this.burst(e.x + (e.dir > 0 ? 12 : 0), e.y + 4, 4, '#bff0ff');
+      if (!this.guardTold) {
+        this.guardTold = true;
+        if (!this.hooks.sightSeen?.('phishGuard')) {
+          this.hooks.markSight?.('phishGuard');
+          this.hooks.say?.({ who: 'guard', text: '盾ではじかれた! 釣り針を投げる瞬間(「!」)か、ため撃ち・踏みつけなら通ります' });
+        }
+      }
+      return 'guard';
+    }
     if (e.kind === 'mail') {
       // メール便は、撃つ = 追い返す(仕分け)。本物を撃つと業務が止まる
       this.sortMail(e, true);
@@ -386,7 +402,7 @@ export class Game {
       h,
       vx: p.face * (big ? 230 : 260),
       big,
-      life: 0.9,
+      life: big ? 0.9 : 0.55, // 小さい弾は射程が短い(画面の半分ほど)
       hit: new Set(),
     });
     p.shootPose = 0.25;
@@ -405,8 +421,12 @@ export class Game {
       for (const e of this.enemies) {
         if (e.dead || s.hit.has(e) || (e.gate && !this.released[e.gate]) || !overlap(s, e)) continue;
         s.hit.add(e);
-        this.hitEnemy(e, s.big ? 3 : 1, s.big ? 'charge' : 'shot');
+        const r = this.hitEnemy(e, s.big ? 3 : 1, s.big ? 'charge' : 'shot', s);
         if (this.over) return;
+        if (r === 'guard') {
+          s.life = 0;
+          break;
+        }
         if (!s.big) {
           s.life = 0; // 小さい弾は1体で消える。ためた弾は貫く
           break;
@@ -636,6 +656,7 @@ export class Game {
       e.t += dt;
       // フィッシング: 近づくと立ち止まって、釣り針を投げてくる(投げた直後がスキ)
       if (e.kind === 'phish' && !e.gate && e.onGround && Math.abs(e.x - p.x) < 7 * T) {
+        e.dir = p.x < e.x ? -1 : 1; // 盾をこちらへ向ける
         e.throwT -= dt;
         if (e.throwT < 0.45 && e.throwT > 0) {
           e.vx = 0;
@@ -651,11 +672,63 @@ export class Game {
           sfx.tick();
         }
       }
+      // Password1!(総当たり攻撃): 近づくと、こちらへ跳びかかってくる
+      if (e.kind === 'pass' && !e.gate && e.onGround && Math.abs(e.x - p.x) < 6 * T) {
+        e.hopT -= dt;
+        if (e.hopT <= 0) {
+          e.hopT = 1.5;
+          e.dir = p.x < e.x ? -1 : 1;
+          e.vy = -250;
+          e.onGround = false;
+          e.hopping = true;
+        }
+      }
+      // 迷惑メール: 小刻みに跳ねながら流れてくる(地面すれすれの弾をすり抜ける)
+      if (e.kind === 'spam' && e.onGround) e.vy = -150 - Math.random() * 40;
+      // ボット: 空を飛び、真上に来ると急降下してくる
+      if (e.fly) {
+        e.st += dt;
+        if (e.state === 'patrol') {
+          e.dir = p.x < e.x ? -1 : 1;
+          // 持ち場(置かれた場所の前後6マス)からは離れない
+          e.x = clamp(e.x + e.dir * e.speed * dt, e.homeX - 6 * T, e.homeX + 6 * T);
+          e.y = e.baseY + Math.sin(e.t * 3) * 10;
+          if (Math.abs(p.x - e.x) < 2 * T && e.st > 1.2) {
+            e.state = 'aim';
+            e.st = 0;
+          }
+        } else if (e.state === 'aim') {
+          e.flash = Math.max(e.flash, 0.05);
+          if (e.st > 0.35) {
+            e.state = 'dive';
+            e.st = 0;
+            const dx = p.x - e.x;
+            const dy = p.y - e.y;
+            const d = Math.hypot(dx, dy) || 1;
+            e.dvx = (dx / d) * 170;
+            e.dvy = (dy / d) * 170;
+          }
+        } else if (e.state === 'dive') {
+          e.x += e.dvx * dt;
+          e.y += e.dvy * dt;
+          if (e.st > 0.7 || e.y + e.h >= (this.rows - 2) * T) {
+            e.y = Math.min(e.y, (this.rows - 2) * T - e.h);
+            e.state = 'rise';
+            e.st = 0;
+          }
+        } else if (e.state === 'rise') {
+          e.y += (e.baseY - e.y) * Math.min(1, dt * 2.5);
+          if (e.st > 1) {
+            e.state = 'patrol';
+            e.st = 0;
+          }
+        }
+      }
       // マルウェア: 放っておくと分裂して増える
       if (e.kind === 'virus' && (e.gen || 0) < 2) {
         e.split -= dt;
         if (e.split <= 0) {
-          e.split = 5;
+          e.split = 4;
           e.gen = (e.gen || 0) + 1;
           const c = this.enemy('virus', e.x, e.y);
           Object.assign(c, { awake: true, gen: e.gen, dir: -e.dir, vy: -160 });
@@ -664,12 +737,17 @@ export class Game {
           this.floats.push({ x: e.x + 6, y: e.y - 6, text: '増殖!', life: 0.8 });
         }
       }
-      e.vx = e.dir * e.speed;
+      if (e.fly) {
+        // 飛ぶ敵は、地形を気にせず動く(上のブロック)
+      } else {
+      e.vx = e.dir * e.speed * (e.hopping ? 1.6 : 1);
       e.vy = Math.min(PH.maxFall, e.vy + PH.gravity * dt);
       this.moveX(e, dt);
       if (e.hitWall) e.dir *= -1;
       this.moveY(e, dt);
-      if (e.onGround) {
+      if (e.onGround) e.hopping = false;
+      }
+      if (e.onGround && !e.fly) {
         const fx = e.dir > 0 ? e.x + e.w + 1 : e.x - 1;
         if (!this.solidAt(Math.floor(fx / T), Math.floor((e.y + e.h + 1) / T))) e.dir *= -1;
       }
@@ -703,7 +781,7 @@ export class Game {
           // 踏みつけは強い: 鎧も一度で割れる
           this.hitEnemy(e, e.kind === 'pass' ? e.hp : 3, 'stomp');
         } else {
-          const cause = { phish: 'phishMail', virus: 'malwareHit', spam: 'spamHit' }[e.kind] || 'weakPass';
+          const cause = { phish: 'phishMail', virus: 'malwareHit', spam: 'spamHit', bot: 'botHit' }[e.kind] || 'weakPass';
           this.hurt(cause, e.kind === 'spam' ? 4 : 10, e);
           if (this.over) return;
         }
@@ -1062,6 +1140,17 @@ export class Game {
       const fr = S[e.kind][Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
       if (e.kind === 'spam') g.drawImage(fr, X(e.x - 4), Y(e.y - 9));
       else g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
+      if (e.kind === 'bot' && e.state === 'aim') {
+        g.fillStyle = '#ff3b5c';
+        g.font = '16px "DotGothic16", monospace';
+        g.textAlign = 'center';
+        g.fillText('!', X(e.x + 6), Y(e.y - 8));
+      }
+      // フィッシングの盾(正面に光る線)。釣り針を投げる瞬間は下がる
+      if (e.kind === 'phish' && e.gate !== 'tutorial' && !(e.throwT < 0.45 && e.throwT > 0)) {
+        g.fillStyle = 'rgba(191,240,255,0.75)';
+        g.fillRect(X(e.dir > 0 ? e.x + e.w + 1 : e.x - 3), Y(e.y - 2), 4, 22);
+      }
       // 釣り針を投げる前の合図
       if (e.kind === 'phish' && e.throwT < 0.45 && e.throwT > 0) {
         g.fillStyle = '#ffd23f';

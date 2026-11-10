@@ -842,6 +842,28 @@ export function spam(frame = 0) {
   return outline(G, '#4a0f33');
 }
 
+// ---- ボット(ボットネットに乗っ取られた小型機。空を飛び、急降下してくる) ----
+export function bot(frame = 0) {
+  const G = grid(32, 32);
+  // プロペラ
+  const pw = frame ? 6 : 10;
+  rect(G, 16 - pw, 7, 15 + pw, 8, C.st2);
+  rect(G, 15, 9, 16, 11, C.st4);
+  // 体(灰色の丸い機体)
+  shape(G, 6, 12, 25, 27, (x, y) => inRound(x, y, 6, 12, 25, 27, 5), (x, y) => {
+    const t = (x - 6) / 19 + (y - 12) / 15;
+    return t < 0.5 ? C.st1 : t < 1.1 ? C.st2 : t < 1.6 ? C.st3 : C.st4;
+  });
+  // 赤いひとつ目(乗っ取られた印)
+  rect(G, 11, 16, 20, 22, C.slit);
+  rect(G, 13 + frame, 17, 17 + frame, 21, C.red);
+  rect(G, 14 + frame, 18, 15 + frame, 19, C.redHi);
+  // アンテナと脚
+  rect(G, 8, 27, 9, 29, C.st4);
+  rect(G, 22, 27, 23, 29, C.st4);
+  return outline(G, C.sol);
+}
+
 export function allArt() {
   return {
     'guard.stand': guard('stand'),
@@ -878,5 +900,6 @@ export function allArt() {
     hero1: hero(1),
     virus: virus(0),
     spam: spam(0),
+    bot: bot(0),
   };
 }
