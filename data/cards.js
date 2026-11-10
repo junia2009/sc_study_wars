@@ -4,7 +4,7 @@
 // 数字は、出典を開いて確かめたものだけを書く(今はひとつも書いていない)。
 // sources の url と checked(確かめた年月)は、公開前に出典を開いて埋めること。
 
-// 月曜: bec・phishing・verify / 火曜: ceo・mfa / 水曜: malware・reuse / 木曜: vishing・push
+// 月曜: bec・phishing・verify / 火曜: ceo・mfa・tailgate / 水曜: malware・reuse / 木曜: vishing・push
 // 金曜: takeover / 土曜: ransom / 日曜: culture
 export const CARDS = [
   {
@@ -164,6 +164,18 @@ export const CARDS = [
     ifDone: '報告してくれた人を責めない。早い報告ほど被害は小さくなる。',
     sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
   },
+  {
+    id: 'tailgate',
+    name: '共連れ(ともづれ)',
+    sprite: 'tail',
+    what:
+      '社員証で開く入口に、正規の社員のすぐ後ろに付いて入り込む手口です。' +
+      '宅配業者や来客を装うことも多く、パソコンや書類から直接情報を盗まれます。',
+    signs: ['社員証を身に付けていない人が、扉が閉まる前に入ってくる', '「忘れてしまって」「両手がふさがって」と、開けてもらおうとする'],
+    action: '自分の社員証で入るとき、後ろの人を一緒に通さない。見かけない人には声をかけ、受付や総務に案内する。',
+    ifDone: '不審な人を通してしまったら、すぐ総務・警備に知らせる。',
+    sources: [{ name: 'IPA「情報セキュリティ10大脅威」', url: null, checked: null }],
+  },
 ];
 
 // 障害報告書・始末書に書かれる「原因」と「再発防止策」
@@ -209,6 +221,8 @@ export const CAUSES = {
   falseFlag: { title: '本物のメールの問題ないところまで、疑って止めた', fix: '手帳の本物と見比べて、違いがあるところだけを疑う' },
   intruded: { title: '取り逃がした攻撃が、社内に入り込んでいた', fix: '入口で止める。見つけた攻撃は、その場で対処して報告' },
   malwareHit: { title: 'マルウェア(敵)に何度もぶつかった', fix: '増える前に、早く見つけて隔離する' },
+  tailgate: { title: '社員証のない人(共連れ)を、社内に入れてしまった', fix: '社員証で入るとき、後ろの人を一緒に通さない' },
+  hitColleague: { title: '本物の同僚まで疑って、仕事を止めた', fix: '社員証を見て、本物なら通常どおり接する' },
   botHit: { title: 'ボット(乗っ取られた機器)の体当たりを受けた', fix: '乗っ取られた機器は、見つけたらネットワークから外す' },
   spamHit: { title: '迷惑メールの群れに埋もれた', fix: '迷惑メールはまとめて振り分け、開かない' },
   pushDenyReal: { title: '自分のログインの承認まで拒否して、仕事が止まった', fix: '自分で操作したときの通知は、承認してよい' },

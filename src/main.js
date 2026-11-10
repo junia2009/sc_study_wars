@@ -8,6 +8,7 @@ import { STAGE1 } from '../data/stage1.js';
 import { SCENES } from '../data/scenes.js';
 import { MONDAY, GRADES, CLUES } from '../data/story.js';
 import { LATER_DAYS } from '../data/days.js';
+import { WEAPONS } from '../data/weapons.js';
 import * as UI from './ui.js';
 import { Movie } from './movie.js';
 
@@ -33,6 +34,7 @@ const CARD_SPRITE = {
   mail: S.mail[0].r,
   reboot: S.reboot,
   guard: S.guard.stand[0].r,
+  tail: S.tail[0].r,
 };
 const cardImgCache = {};
 const cardImg = (c) => (cardImgCache[c.id] ??= spriteURL(CARD_SPRITE[c.sprite] || S.crystal[0], 2));
@@ -138,6 +140,9 @@ let dayIndex = 0;
 let DAY = DAYS[0];
 // 遊べる日(クリアした日の次の日まで)と、クリアした日
 let progress = store.get('scsw.progress', { unlocked: 0, cleared: [] });
+// 手に入れた特殊武器(クリアした日からも数え直す。前から遊んでいる人にも渡るように)
+let ownedWeapons = [...new Set([...store.get('scsw.weapons', []), ...WEAPONS.filter((w) => w.from && progress.cleared.includes(w.from)).map((w) => w.id)])];
+store.set('scsw.weapons', ownedWeapons);
 // 遊び方の説明を、その日にもう見たか(月曜は以前の保存 seen.learned も見る)
 const learnedDay = () => !!seen[`learned_${DAY.id}`] || (DAY.id === 'monday' && !!seen.learned);
 game = new Game(STAGE1, DAY, S, {
@@ -231,11 +236,19 @@ function review(gm) {
   if (!progress.cleared.includes(DAY.id)) progress.cleared.push(DAY.id);
   progress.unlocked = Math.max(progress.unlocked, Math.min(DAYS.length - 1, dayIndex + 1));
   store.set('scsw.progress', progress);
+  // その日の手口への「対策」を、特殊武器として手に入れる
+  const prize = WEAPONS.find((w) => w.from === DAY.id && !ownedWeapons.includes(w.id));
+  if (prize) {
+    ownedWeapons = [...ownedWeapons, prize.id];
+    store.set('scsw.weapons', ownedWeapons);
+    game.ownedWeapons = ownedWeapons;
+  }
   const nextDay = DAYS[dayIndex + 1];
   const last = !nextDay;
   const opts = {
     day: DAY.day,
     cardImg,
+    weapon: prize,
     onCards: () => cards(() => UI.showReview(sum, opts)),
     onRetry: startDay,
     onTitle: title,
@@ -280,6 +293,7 @@ function playDay(i) {
   DAY = DAYS[i];
   game.stage = DAY.stage;
   game.day = DAY;
+  game.ownedWeapons = ownedWeapons;
   startDay();
 }
 function ending() {
@@ -368,6 +382,10 @@ function pauseMenu() {
     },
   });
 }
+document.querySelector('#hud-weapon').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (mode === 'play') game.switchWeapon(1);
+});
 document.querySelector('#hud-note').addEventListener('click', (e) => {
   e.stopPropagation();
   if (mode === 'play') game.hooks.notebook();

@@ -4,6 +4,7 @@ import { TILE as T, RES } from './sprites.js';
 import { held, take } from './input.js';
 import { sfx } from './audio.js';
 import { gimmickMethods } from './gimmicks.js';
+import { weaponMethods } from './weapons.js';
 
 export const VIEW_W = 320; // 見える横幅の標準。画面の形に合わせて this.vw が変わる(200〜400)
 export const VIEW_H = 180; // 見える高さの標準。縦向きでは床の上の空まで映して高くする(180〜300)
@@ -40,6 +41,7 @@ export class Game {
     this.hooks = hooks;
     this.vw = VIEW_W;
     this.vh = VIEW_H;
+    this.ownedWeapons = []; // 手に入れた特殊武器(main.js が入れる)
     this.reset();
   }
 
@@ -67,6 +69,7 @@ export class Game {
     let hi = 0;
     const mails = [];
     this.gimmickReset();
+    this.weaponReset(this.ownedWeapons);
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const ch = this.grid[y][x];
@@ -80,6 +83,8 @@ export class Game {
           case 'M': mails.push(this.enemy('mail', px + 2, py + 6)); break;
           case 'v': this.enemies.push(this.enemy('virus', px + 2, py + 6)); break;
           case 'b': this.enemies.push(this.enemy('bot', px + 2, py + 6)); break;
+          case 'c': this.enemies.push(this.enemy('staff', px + 3, py + 6)); break;
+          case 't': this.enemies.push(this.enemy('tail', px + 3, py + 6)); break;
           case 's': this.spawners.push({ x: px, y: py, n: 5, t: 0, on: false }); break;
           case 'o': this.coins.push({ x: px + 4, y: py + 4, w: 8, h: 8 }); break;
           case 'T': this.terms.push({ x: px, y: py, w: T, h: T, id: this.day.scenes[ti++], used: false }); break;
@@ -169,6 +174,7 @@ export class Game {
     if (kind === 'virus') Object.assign(e, { speed: 30, gen: 0, split: 4 });
     if (kind === 'spam') Object.assign(e, { w: 8, h: 7, y: y + 3, speed: 62 });
     if (kind === 'phish') e.throwT = 1.2 + Math.random();
+    if (kind === 'staff' || kind === 'tail') Object.assign(e, { w: 10, h: 14, y: y - 4, dir: 1, speed: 24 });
     if (kind === 'bot') Object.assign(e, { homeX: x, fly: true, hp: 2, speed: 34, baseY: y - 3 * T, y: y - 3 * T, state: 'patrol', st: 0 });
     return e;
   }
@@ -361,6 +367,15 @@ export class Game {
       }
       return 'guard';
     }
+    if (e.kind === 'staff') {
+      // 本物の社員を撃ってしまった(倒れない。仕事が止まる)
+      if (e.flash > 0) return 'guard';
+      e.flash = 0.8;
+      sfx.bad();
+      this.floats.push({ x: e.x + 5, y: e.y - 8, text: '同僚だった!', life: 1 });
+      this.addDelay(6, 'hitColleague');
+      return 'guard';
+    }
     if (e.kind === 'mail') {
       // メール便は、撃つ = 追い返す(仕分け)。本物を撃つと業務が止まる
       this.sortMail(e, true);
@@ -412,6 +427,7 @@ export class Game {
   updateShots(dt) {
     for (const s of this.shots) {
       s.x += s.vx * dt;
+      s.y += (s.vy || 0) * dt;
       s.life -= dt;
       if (this.solidAt(Math.floor((s.x + s.w / 2) / T), Math.floor((s.y + s.h / 2) / T))) {
         s.life = 0;
@@ -421,6 +437,13 @@ export class Game {
       for (const e of this.enemies) {
         if (e.dead || s.hit.has(e) || (e.gate && !this.released[e.gate]) || !overlap(s, e)) continue;
         s.hit.add(e);
+        if (e.jail !== undefined) continue;
+        if (s.kind) {
+          this.specialHit(s, e);
+          if (this.over) return;
+          s.life = 0;
+          break;
+        }
         const r = this.hitEnemy(e, s.big ? 3 : 1, s.big ? 'charge' : 'shot', s);
         if (this.over) return;
         if (r === 'guard') {
@@ -638,8 +661,10 @@ export class Game {
       if (e.gate && !this.released[e.gate]) continue;
       if (!e.awake && e.x < this.camX + this.vw + 24) e.awake = true;
       if (!e.awake) continue;
+      if (e.jail !== undefined) continue; // 隔離中は動かない
       // 初めて画面に映った種類の敵なら、ガードが説明する
-      if (!this.sighted[e.kind] && e.x < this.camX + this.vw - 8 && e.x > this.camX) {
+      // (共連れは、社員と並んで画面の中ほどに来てから説明する)
+      if (!this.sighted[e.kind] && e.x < this.camX + (e.kind === 'tail' ? this.vw * 0.6 : this.vw - 8) && e.x > this.camX) {
         this.sighted[e.kind] = true;
         let first = this.day.firstSight?.[e.kind];
         // 敵の説明は、どの日でも一度見たら出さない
@@ -724,6 +749,18 @@ export class Game {
           }
         }
       }
+      // 共連れ: 本物の社員のすぐ後ろに付いて歩く。社員がいなければ、こちらへ向かってくる
+      if (e.kind === 'tail') {
+        const host = this.enemies.find((o) => o.kind === 'staff' && !o.dead && Math.abs(o.x - e.x) < 5 * T);
+        if (host) {
+          const tx = host.x - host.dir * 14;
+          e.dir = tx < e.x ? -1 : 1;
+          e.speed = Math.abs(tx - e.x) > 3 ? 30 : 0;
+        } else {
+          e.dir = p.x < e.x ? -1 : 1;
+          e.speed = 34;
+        }
+      }
       // マルウェア: 放っておくと分裂して増える
       if (e.kind === 'virus' && (e.gen || 0) < 2) {
         e.split -= dt;
@@ -759,11 +796,12 @@ export class Game {
         continue;
       }
       // 倒さずに画面の後ろへ置いてきた敵は、社内に入り込む
-      if (e.kind !== 'mail' && e.gate !== 'tutorial' && !this.inTutorial() && e.x < this.camX - 3 * T) {
+      if (e.kind !== 'mail' && e.kind !== 'staff' && e.gate !== 'tutorial' && !this.inTutorial() && e.x < this.camX - 3 * T) {
         this.intrude(e);
         continue;
       }
 
+      if (!e.dead && e.kind === 'staff') continue; // 本物の社員には、ぶつかっても何もない(踏まない・撃たない)
       if (!e.dead && overlap(p, e)) {
         const stomp = p.vy > 0 && p.y + p.h - e.y <= 8;
         if (e.kind === 'mail') {
@@ -781,7 +819,7 @@ export class Game {
           // 踏みつけは強い: 鎧も一度で割れる
           this.hitEnemy(e, e.kind === 'pass' ? e.hp : 3, 'stomp');
         } else {
-          const cause = { phish: 'phishMail', virus: 'malwareHit', spam: 'spamHit', bot: 'botHit' }[e.kind] || 'weakPass';
+          const cause = { phish: 'phishMail', virus: 'malwareHit', spam: 'spamHit', bot: 'botHit', tail: 'tailgate' }[e.kind] || 'weakPass';
           this.hurt(cause, e.kind === 'spam' ? 4 : 10, e);
           if (this.over) return;
         }
@@ -794,6 +832,7 @@ export class Game {
         c.taken = true;
         this.score += 10;
         this.workDone();
+        this.refillWeapon(1);
         sfx.coin();
         this.hooks.hud?.(this);
       }
@@ -887,16 +926,20 @@ export class Game {
     // B ボタン(X キー): 扉の前なら入る、それ以外は撃つ。押し続けるとためて、離すと大きい弾
     this.shotCool = Math.max(0, this.shotCool - dt);
     p.shootPose = Math.max(0, p.shootPose - dt);
+    if (take('prev')) this.switchWeapon(-1);
+    if (take('next')) this.switchWeapon(1);
     if (take('act')) {
       if (this.gimmickAct()) return;
-      this.fire(false);
+      if (!this.fireSpecial()) this.fire(false);
     }
-    if (held.act) p.charge += dt;
+    if (held.act && this.weapon().id === 'buster') p.charge += dt;
     else {
       if (p.charge >= 0.75) this.fire(true);
       p.charge = 0;
     }
     this.updateShots(dt);
+    if (this.over) return;
+    this.weaponUpdate(dt);
     if (this.over) return;
     this.combo.t = Math.max(0, this.combo.t - dt);
 
@@ -1139,6 +1182,7 @@ export class Game {
       if (e.flash > 0 && Math.floor(t * 30) % 2) continue;
       const fr = S[e.kind][Math.floor(t * 4) % 2][e.dir > 0 ? 'r' : 'l'];
       if (e.kind === 'spam') g.drawImage(fr, X(e.x - 4), Y(e.y - 9));
+      else if (e.kind === 'staff' || e.kind === 'tail') g.drawImage(fr, X(e.x - 3), Y(e.y - 2));
       else g.drawImage(fr, X(e.x - 2), Y(e.y - 6));
       if (e.kind === 'bot' && e.state === 'aim') {
         g.fillStyle = '#ff3b5c';
@@ -1188,7 +1232,16 @@ export class Game {
     for (const sh of this.shots) {
       const x = X(sh.x);
       const y = Y(sh.y);
-      if (sh.big) {
+      if (sh.kind) {
+        g.fillStyle = sh.kind === 'quarantine' ? '#5dff8a' : '#ff9fc6';
+        g.fillRect(x, y, sh.w * RES, sh.h * RES);
+        g.fillStyle = '#ffffff';
+        g.fillRect(x + 3, y + 3, sh.w * RES - 6, sh.h * RES - 6);
+        if (sh.kind === 'quarantine') {
+          g.fillStyle = '#00813a';
+          g.fillRect(x + 6, y + 3, 2, sh.h * RES - 6);
+        }
+      } else if (sh.big) {
         g.fillStyle = 'rgba(127,227,255,0.45)';
         g.fillRect(x - 4, y - 4, sh.w * RES + 8, sh.h * RES + 8);
         g.fillStyle = '#7fe3ff';
@@ -1202,6 +1255,7 @@ export class Game {
         g.fillRect(x + 3, y + 2, sh.w * RES - 6, sh.h * RES - 4);
       }
     }
+    this.weaponRender(g, X, Y, t);
     // 多要素認証の盾が光る
     if (this.shieldFlash > 0) {
       const a = Math.min(1, this.shieldFlash);
@@ -1296,4 +1350,4 @@ export class Game {
 }
 
 // 火曜〜日曜のギミック(gimmicks.js)を足す
-Object.assign(Game.prototype, gimmickMethods);
+Object.assign(Game.prototype, gimmickMethods, weaponMethods);

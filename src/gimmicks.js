@@ -177,14 +177,19 @@ export const gimmickMethods = {
     }
     for (const h of this.hooksShot) {
       h.x += (h.vx || 0) * dt;
-      h.y += h.vy * dt;
-      h.vy = Math.min(240, h.vy + (h.vx ? 420 : 200) * dt);
+      if (h.flat) {
+        // 床を這う釣り糸(跳んでよける)
+        if (h.x < this.camX - 40 || h.x > this.camX + this.vw + 40) h.dead = true;
+      } else {
+        h.y += h.vy * dt;
+        h.vy = Math.min(240, h.vy + (h.vx ? 420 : 200) * dt);
+      }
       if (!h.dead && overlap(p, h)) {
         h.dead = true;
         this.hurt(h.cause || 'bossHook', h.dmg || 4, h);
         if (this.over) return true;
       }
-      if (h.y > this.rows * T || (h.vy > 0 && this.solidAt(Math.floor((h.x + 4) / T), Math.floor((h.y + h.h) / T)))) h.dead = true;
+      if (!h.flat && (h.y > this.rows * T || (h.vy > 0 && this.solidAt(Math.floor((h.x + 4) / T), Math.floor((h.y + h.h) / T))))) h.dead = true;
     }
     // 釣り針は弾で打ち落とせる
     for (const s of this.shots) for (const h of this.hooksShot) if (!h.dead && overlap(s, h)) { h.dead = true; if (!s.big) s.life = 0; this.burst(h.x + 4, h.y + 4, 4, '#e6ecf5'); }
@@ -318,7 +323,25 @@ export const gimmickMethods = {
     }
     b.t += dt;
     b.inv = Math.max(0, b.inv - dt);
-    const speed = cfg.speed || 50;
+    // 後半戦(日曜): 体力が半分を切ると、本気を出す
+    if (cfg.phase2 && !b.phase2 && b.hp <= b.max / 2) {
+      b.phase2 = true;
+      b.state = 'hover';
+      b.t = 0;
+      for (const dx of [-5, 5]) {
+        const e = this.enemy('bot', b.x + dx * T, (this.rows - 3) * T + 6);
+        e.awake = true;
+        e.homeX = b.x;
+        this.enemies.push(e);
+      }
+      if (cfg.phase2.talk) {
+        p.vx = 0;
+        this.hooks.lesson?.(cfg.phase2.talk);
+        return true;
+      }
+    }
+    const rage = b.phase2 ? 1.35 : 1;
+    const speed = (cfg.speed || 50) * rage;
     if (b.state === 'hover') {
       const tx = p.x - 6;
       b.x += clamp(tx - b.x, -speed * dt, speed * dt);
@@ -326,10 +349,10 @@ export const gimmickMethods = {
       b.dir = tx < b.x ? -1 : 1;
       b.drop = (b.drop || 0) - dt;
       if (b.drop <= 0) {
-        b.drop = cfg.drop || 2.2;
+        b.drop = (cfg.drop || 2.2) / rage;
         this.hooksShot.push({ x: b.x + 8, y: b.y + 20, w: 8, h: 10, vy: 30 });
       }
-      if (b.t > (cfg.swoop || 4.5)) {
+      if (b.t > (cfg.swoop || 4.5) / rage) {
         // 降りる前に、その場で震えて知らせる(真下にいたら、よけられるように)
         b.state = 'warn';
         b.t = 0;
@@ -340,10 +363,19 @@ export const gimmickMethods = {
         b.state = 'down';
         b.t = 0;
         b.shake = 0;
+        if (b.phase2) b.wave = 0.35; // 着地の衝撃で、床を這う釣り糸を左右へ
       }
     } else if (b.state === 'down') {
       const groundY = (this.rows - 2) * T - b.h;
       b.y += (groundY - b.y) * Math.min(1, dt * 6);
+      if (b.wave !== undefined) {
+        b.wave -= dt;
+        if (b.wave <= 0) {
+          delete b.wave;
+          for (const d of [-1, 1]) this.hooksShot.push({ x: b.x + 8 + d * 14, y: (this.rows - 2) * T - 9, w: 10, h: 8, vx: d * 130, vy: 0, flat: true, cause: 'bossHook', dmg: 5 });
+          sfx.bump();
+        }
+      }
       if (b.t > 2.8) {
         b.state = 'hover';
         b.t = 0;
@@ -394,7 +426,7 @@ export const gimmickMethods = {
     const b = this.boss;
     if (!b || !b.awake || b.dead || !overlap(s, b)) return false;
     if (b.inv > 0) return true;
-    this.damageBoss(s.big ? 3 : 1, s.big ? 0.3 : 0.08);
+    this.damageBoss(s.big ? 3 : s.kind === 'quarantine' ? 2 : 1, s.big ? 0.3 : 0.08);
     return true;
   },
 
@@ -473,7 +505,14 @@ export const gimmickMethods = {
         g.fillText('いまだ! 踏め', clamp(X(b.x + 12), 60, this.vw * RES - 60), Y(b.y) - 22);
       }
     }
-    for (const h of this.hooksShot) g.drawImage(S.hookShot, X(h.x - 4), Y(h.y - 4));
+    for (const h of this.hooksShot) {
+      if (h.flat) {
+        g.fillStyle = '#b18cff';
+        g.fillRect(X(h.x), Y(h.y + 3), h.w * RES, 4);
+        g.fillStyle = '#e6ecf5';
+        g.fillRect(X(h.vx > 0 ? h.x + h.w - 3 : h.x), Y(h.y), 6, 16);
+      } else g.drawImage(S.hookShot, X(h.x - 4), Y(h.y - 4));
+    }
     // 暗号化の壁(土曜)
     if (this.chase?.active) {
       const edge = X(this.chase.x);

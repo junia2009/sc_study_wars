@@ -864,6 +864,22 @@ export function bot(frame = 0) {
   return outline(G, C.sol);
 }
 
+// ---- 社員(本物は社員証を首から下げている)と、共連れ(社員証がない)----
+// 姿は同じ。見分けるのは胸の社員証だけ
+export function staff(frame = 0, badge = true) {
+  const G = hero(frame);
+  const shirt = (x) => (x < 14 ? '#ffffff' : x < 18 ? '#e6ecf5' : '#c3cbe0');
+  // もとの小さい社員証を消す
+  for (let y = 14; y <= 21; y++) for (let x = 13; x <= 18; x++) if (G[y][x]) G[y][x] = shirt(x);
+  if (badge) {
+    // 赤いストラップと、大きめの社員証(白地に青い帯)
+    for (let y = 14; y <= 17; y++) { G[y][13] = '#e8344e'; G[y][18] = '#e8344e'; }
+    for (let y = 17; y <= 22; y++) for (let x = 13; x <= 18; x++) G[y][x] = y < 19 ? '#1a7fd6' : '#ffffff';
+    G[20][14] = '#8d97ab'; G[20][15] = '#8d97ab'; G[21][14] = '#8d97ab'; G[21][16] = '#8d97ab';
+  }
+  return G;
+}
+
 export function allArt() {
   return {
     'guard.stand': guard('stand'),
@@ -901,5 +917,7 @@ export function allArt() {
     virus: virus(0),
     spam: spam(0),
     bot: bot(0),
+    staff: staff(0),
+    tail: staff(0, false),
   };
 }

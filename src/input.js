@@ -8,10 +8,11 @@ const KEYS = {
   KeyZ: 'jump', Space: 'jump', KeyK: 'jump', KeyW: 'jump',
   KeyX: 'act', KeyJ: 'act', ArrowUp: 'act', Enter: 'act',
   KeyC: 'note', KeyI: 'note',
+  KeyQ: 'prev', KeyE: 'next',
 };
 
-export const held = { left: false, right: false, jump: false, act: false, note: false };
-const pressed = { jump: false, act: false, note: false };
+export const held = { left: false, right: false, jump: false, act: false, note: false, prev: false, next: false };
+const pressed = { jump: false, act: false, note: false, prev: false, next: false };
 const sources = { key: {}, touch: {}, pad: {} };
 
 function refresh(name) {
@@ -27,7 +28,7 @@ export function take(name) {
 }
 
 export function clearPressed() {
-  pressed.jump = pressed.act = pressed.note = false;
+  for (const k in pressed) pressed[k] = false;
 }
 
 let enabled = true;
@@ -178,6 +179,8 @@ export function pollPad() {
     jump: b(0),
     act: b(1) || b(2) || b(12),
     note: b(3),
+    prev: b(4),
+    next: b(5),
   };
   for (const k in next) {
     if (sources.pad[k] !== next[k]) {

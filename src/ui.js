@@ -100,6 +100,14 @@ export function updateHud(game) {
     bar.style.setProperty('--v', v / 100);
     bar.classList.toggle('warn', v >= 60);
   }
+  const wb = $('#hud-weapon');
+  const w = game.weaponHud();
+  wb.hidden = w.count < 2;
+  wb.classList.toggle('buster', w.id === 'buster');
+  wb.style.setProperty('--wc', w.color);
+  wb.style.setProperty('--e', w.energy ?? 1);
+  wb.querySelector('b').textContent = w.short;
+  wb.title = w.name;
   const ioc = $('#hud-ioc');
   ioc.hidden = !game.ioc;
   ioc.textContent = `痕跡 ${game.ioc}`;
@@ -404,7 +412,7 @@ export function basicsHTML() {
     <h3>メールの見抜き</h3>
     <p>判断シーンでは、メールの怪しいところをタップして印を付ける。本当に怪しいところなら「見抜いた」、問題ないところなら「疑いすぎ」(業務の遅れ +3%)。本物のメールなら、印を付けないのが正解。</p>
     <h3>操作</h3>
-    <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / ショット: ${esc(KEYWORDS.shoot())}(長押しして離すと、ため撃ち) / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
+    <p>移動: ${esc(KEYWORDS.move())} / ジャンプ: ${esc(KEYWORDS.jump())}(押す長さで高さが変わる) / ショット: ${esc(KEYWORDS.shoot())}(長押しして離すと、ため撃ち) / 武器の切り替え: ${ctx.touch() ? '右上の武器アイコン' : 'Q / E'} / 手帳: ${esc(KEYWORDS.note())} / 一時停止: ${esc(KEYWORDS.pause())}</p>
   </div>`;
 }
 
@@ -787,7 +795,7 @@ export function showReport(game, { onRetry, onTitle }) {
 }
 
 // ---------------- 夕方の振り返り ----------------
-export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle, next, onNext }) {
+export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle, next, onNext, weapon }) {
   setKeys(null);
   const cards = sum.cards.map((id) => CARDS.find((c) => c.id === id));
   show(
@@ -815,6 +823,11 @@ export function showReview(sum, { day, cardImg, onCards, onRetry, onTitle, next,
         .map((j) => `<li class="${j.tier}"><span>${TIERS[j.tier].mark}</span>${esc(sceneName(j.id))}<em>${esc(TIERS[j.tier].label)}</em></li>`)
         .join('')}</ul>
       ${sum.badges.length ? `<div class="badges">${sum.badges.map((b) => `<span>🏅 ${esc(b)}</span>`).join('')}</div>` : ''}
+      ${
+        weapon
+          ? `<div class="new-weapon" style="--wc:${weapon.color}"><p class="nw-head">新しい武器を手に入れた!</p><p class="nw-name"><b>${esc(weapon.short)}</b>${esc(weapon.name)}</p><p>${esc(weapon.desc)}</p><p class="fine">切り替え: ${ctx.touch() ? '画面右上の武器アイコンをタップ' : 'Q / E キー(右上の武器アイコンでも)'}</p></div>`
+          : ''
+      }
       <h3>手に入れた解説カード</h3>
       <ul class="mini-cards">${cards
         .map((c) => `<li><img src="${cardImg(c)}" alt="" width="32" height="32">${esc(c.name)}</li>`)

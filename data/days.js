@@ -59,11 +59,15 @@ export const TUESDAY = {
       m.on(120, 'i'); // 夕方
       [123, 124, 125].forEach((x) => m.put(x, 8, 'o'));
       m.on(98, 'b'); // ボット(空から急降下)
+      m.on(76, 'c'); // 本物の社員
+      m.on(74, 't'); // 共連れ(社員証がない)
+      m.on(107, 'c');
+      m.on(105, 't');
       m.on(127, 'Z');
     }),
   },
   barrier: 'mfa',
-  cards: ['ceo', 'mfa'],
+  cards: ['ceo', 'mfa', 'tailgate'],
   scenes: ['ceo', 'mfaSetup'],
   clocks: { ceo: '11:00', mfaSetup: '15:00', boss: '17:00' },
   intro: [
@@ -621,6 +625,8 @@ export const FRIDAY = {
       m.col(142, 0, 9, 'X'); // アングラーを倒すと開く
       [146, 147, 148].forEach((x) => m.put(x, 8, 'o'));
       m.on(86, 'b'); // ボット(空から急降下)
+      m.on(104, 'c'); // 本物の社員
+      m.on(102, 't'); // 共連れ
       m.on(153, 'Z');
     }),
   },
@@ -637,7 +643,7 @@ export const FRIDAY = {
     swoop: 4,
     talk: [
       { who: 'anglerKnown', text: 'よくここまで来たな。だが、支払いはいただく!' },
-      { who: 'guard', text: 'アングラーです! 降りてきたところを、上から踏みましょう!' },
+      { who: 'guard', text: 'アングラーです! 降りてきたところを撃つか、上から踏みましょう!' },
     ],
     defeat: [
       { who: 'anglerKnown', text: 'ぐっ……今日のところは、引いてやる' },
@@ -1050,8 +1056,14 @@ export const SUNDAY = {
     swoop: 3.8,
     talk: [
       { who: 'anglerKnown', text: 'ここまで来たか、見習い。……だが、ここが私の釣り場だ!' },
-      { who: 'guard', text: '最後です! 降りてきたところを踏んで、4回!' },
+      { who: 'guard', text: '最後です! 降りてきたところを撃つか、踏んで!' },
     ],
+    phase2: {
+      talk: [
+        { who: 'anglerKnown', text: 'くっ……ならば、乗っ取った機器も総動員だ!' },
+        { who: 'guard', text: '動きが速くなりました! 着地のときに床を這う釣り糸が来ます。跳んでよけて!' },
+      ],
+    },
     defeat: [
       { who: 'anglerKnown', text: 'ば、馬鹿な……釣り針に、一度もかからないとは……' },
       { who: 'anglerKnown', text: '……覚えておけ。人が「確かめる」ことをやめたとき、我々はまた戻ってくる' },
