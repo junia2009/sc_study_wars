@@ -1,6 +1,6 @@
 // オフラインでも遊べるように、ゲームのファイルを端末に保存する。
 // ファイルを変えたら VERSION を上げること(古い保存が消えて、新しいものに入れ替わる)。
-const VERSION = 'scsw-v0.14.0';
+const VERSION = 'scsw-v0.15.0';
 const FILES = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const FILES = [
   './src/art.js',
   './src/gimmicks.js',
   './src/weapons.js',
+  './src/demo.js',
   './data/stage1.js',
   './data/scenes.js',
   './data/cards.js',

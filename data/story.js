@@ -117,15 +117,46 @@ export const MONDAY = {
   hints: [
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '{move}で移動。右へ進もう' },
-      ],
+      demo: {
+        script: [
+          [
+            0.9,
+            'r',
+          ],
+          [
+            0.3,
+            '',
+          ],
+        ],
+        task: 'move',
+        text: '{move}で右へ',
+      },
     },
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '{jump}でジャンプ。長押しで高く跳べる' },
-      ],
+      demo: {
+        script: [
+          [
+            0.3,
+            'r',
+          ],
+          [
+            0.35,
+            'rj',
+          ],
+          [
+            0.5,
+            'r',
+          ],
+          [
+            0.4,
+            '',
+          ],
+        ],
+        task: 'pass',
+        pass: 11.5,
+        text: '{jump}でジャンプ(長押しで高く)',
+      },
     },
     {
       help: true,
@@ -136,22 +167,84 @@ export const MONDAY = {
     {
       help: true,
       release: 'tutorial',
-      talk: [
-        { who: 'guard', text: '敵だ! {shoot}で撃つか、上から踏む', point: '#hud .gauge.leak' },
-        { who: 'guard', text: '長押しで、ため撃ち。置いていった敵は夕方に見つかる' },
-      ],
+      demo: {
+        script: [
+          [
+            0.3,
+            '',
+          ],
+          [
+            0.3,
+            'a',
+          ],
+          [
+            0.4,
+            '',
+          ],
+          [
+            1.0,
+            'c',
+          ],
+          [
+            0.5,
+            '',
+          ],
+        ],
+        target: 3,
+        task: 'shoot',
+        text: '{shoot}で撃つ(長押しで、ため撃ち)',
+      },
     },
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '「!」ブロックは、下から叩く' },
-      ],
+      demo: {
+        script: [
+          [
+            0.42,
+            'r',
+          ],
+          [
+            0.15,
+            '',
+          ],
+          [
+            0.35,
+            'j',
+          ],
+          [
+            0.6,
+            '',
+          ],
+        ],
+        task: 'bump',
+        text: '「!」は、下から頭で叩く',
+      },
     },
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '穴の下は本番環境。落ちると漏洩!' },
-      ],
+      demo: {
+        script: [
+          [
+            0.3,
+            'r',
+          ],
+          [
+            0.45,
+            'rj',
+          ],
+          [
+            0.5,
+            'r',
+          ],
+          [
+            0.3,
+            '',
+          ],
+        ],
+        task: 'pass',
+        pass: 27.5,
+        text: '{jump}で穴を飛び越える',
+      },
     },
     {
       help: true,

@@ -202,6 +202,7 @@ export const gimmickMethods = {
     const p = this.p;
     const near = this.doors.find((dr) => !dr.marked && Math.abs(p.x + p.w / 2 - (dr.x + 8)) < 12 && Math.abs(p.y + p.h - (dr.y + dr.h)) < 6);
     if (!near) return false;
+    this.doorTried = true;
     this.hooks.door?.(near);
     return true;
   },

@@ -284,10 +284,8 @@ export const WEDNESDAY = {
     { help: true, say: { who: 'guard', text: '拡張子の見分け表を探そう!' } },
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '箱は添付ファイル。下から叩くと開く' },
-        { who: 'guard', text: 'いちばん右が .pdf .docx .xlsx なら安全。3つ開ければ扉が開く' },
-      ],
+      say: { who: 'guard', text: 'いちばん右が .pdf .docx .xlsx なら安全。3つ開ければ扉が開く' },
+      demo: { script: [[1.05, 'r'], [0.2, ''], [0.35, 'j'], [0.6, '']], task: 'bump', text: '名札の右端を見て、下から叩く' },
     },
     { credential: true },
     { say: { who: 'guard', text: 'もうすぐ夕方。出口へ!' } },
@@ -1080,10 +1078,8 @@ export const SUNDAY = {
     { say: { who: 'guard', text: 'まずは公式ブックマークを!' } },
     {
       help: true,
-      talk: [
-        { who: 'guard', text: '扉の URL を、ブックマークと見比べて' },
-        { who: 'guard', text: '本物の扉の前で{shoot}を押すと入れる' },
-      ],
+      say: { who: 'guard', text: '扉の URL を、ブックマークと見比べて' },
+      demo: { script: [[0.8, 'r'], [0.7, '']], task: 'door', text: '扉の前で{shoot}を押すと入れる' },
     },
     { say: { who: 'guard', text: 'この先に、アングラーが……' } },
     { say: { who: 'guard', text: '静かになった。出口へ!' } },

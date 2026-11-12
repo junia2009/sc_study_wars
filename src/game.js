@@ -5,6 +5,7 @@ import { held, take } from './input.js';
 import { sfx } from './audio.js';
 import { gimmickMethods } from './gimmicks.js';
 import { weaponMethods } from './weapons.js';
+import { demoMethods } from './demo.js';
 
 export const VIEW_W = 320; // 見える横幅の標準。画面の形に合わせて this.vw が変わる(200〜400)
 export const VIEW_H = 180; // 見える高さの標準。縦向きでは床の上の空まで映して高くする(180〜300)
@@ -70,6 +71,10 @@ export class Game {
     const mails = [];
     this.gimmickReset();
     this.weaponReset(this.ownedWeapons);
+    this.demoReset();
+    this.shotCount = 0;
+    this.bigCount = 0;
+    this.doorTried = false;
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const ch = this.grid[y][x];
@@ -422,6 +427,8 @@ export class Game {
       hit: new Set(),
     });
     p.shootPose = 0.25;
+    this.shotCount++;
+    if (big) this.bigCount++;
     sfx[big ? 'charge' : 'shot']();
   }
 
@@ -583,9 +590,12 @@ export class Game {
     const p = this.p;
     this.t += dt;
     this.time += dt;
+    // お手本の再生中は、プレイヤーの操作を止める(見てもらう)
+    const demoOn = this.demoUpdate(dt);
+    const H = demoOn ? { left: false, right: false, jump: false, act: false } : held;
 
     // 横の動き
-    const dir = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+    const dir = (H.right ? 1 : 0) - (H.left ? 1 : 0);
     if (dir) {
       p.face = dir;
       let a = p.onGround ? PH.accelGround : PH.accelAir;
@@ -598,7 +608,7 @@ export class Game {
     p.vx = clamp(p.vx, -PH.runMax, PH.runMax);
 
     // ジャンプ(猶予と先行入力つき)
-    p.buffer = take('jump') ? PH.buffer : Math.max(0, p.buffer - dt);
+    p.buffer = take('jump') && !demoOn ? PH.buffer : Math.max(0, p.buffer - dt);
     p.coyote = p.onGround ? PH.coyote : Math.max(0, p.coyote - dt);
     if (p.buffer > 0 && p.coyote > 0) {
       p.vy = -PH.jumpV;
@@ -607,7 +617,7 @@ export class Game {
       p.jumping = true;
       sfx.jump();
     }
-    if (p.jumping && !held.jump && p.vy < 0) {
+    if (p.jumping && !H.jump && p.vy < 0) {
       p.vy *= PH.jumpCut;
       p.jumping = false;
     }
@@ -860,7 +870,7 @@ export class Game {
     for (const h of this.hints) {
       if (!h.shown && p.x > h.x - 8) {
         h.shown = true;
-        if (h.line?.release) {
+        if (h.line?.release && !(h.line.demo && !(h.line.help && this.hooks.learned?.()))) {
           this.released[h.line.release] = true;
           if (h.line.release === 'chase' && this.chase) {
             this.chase.active = true;
@@ -890,6 +900,11 @@ export class Game {
         }
         // 遊び方の説明は、一度覚えたら出さない
         if (h.line?.help && learned) continue;
+        if (h.line?.demo) {
+          if (h.line.say) this.hooks.say?.(h.line.say);
+          this.startDemo(h.line);
+          continue;
+        }
         if (h.line?.talk) {
           p.vx = 0;
           this.hooks.lesson?.(h.line.talk);
@@ -923,6 +938,11 @@ export class Game {
       this.hooks.prompt?.(nd ? 'B(X キー)で入口に入る' : null);
     }
 
+    this.taskUpdate(dt);
+    if (demoOn) {
+      take('act');
+      take('note');
+    }
     // 手帳(C キー / 画面右上の 📒)
     if (take('note')) {
       this.hooks.notebook?.();
@@ -937,7 +957,7 @@ export class Game {
       if (this.gimmickAct()) return;
       if (!this.fireSpecial()) this.fire(false);
     }
-    if (held.act && this.weapon().id === 'buster') p.charge += dt;
+    if (held.act && !demoOn && this.weapon().id === 'buster') p.charge += dt;
     else {
       if (p.charge >= 0.75) this.fire(true);
       p.charge = 0;
@@ -1261,6 +1281,7 @@ export class Game {
       }
     }
     this.weaponRender(g, X, Y, t);
+    this.demoRender(g, X, Y, t);
     // 多要素認証の盾が光る
     if (this.shieldFlash > 0) {
       const a = Math.min(1, this.shieldFlash);
@@ -1355,4 +1376,4 @@ export class Game {
 }
 
 // 火曜〜日曜のギミック(gimmicks.js)を足す
-Object.assign(Game.prototype, gimmickMethods, weaponMethods);
+Object.assign(Game.prototype, gimmickMethods, weaponMethods, demoMethods);

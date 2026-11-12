@@ -138,7 +138,7 @@ export function say(line) {
 
 export function prompt(text) {
   const el = $('#prompt');
-  el.textContent = text || '';
+  el.textContent = text ? fill(text) : '';
   el.hidden = !text;
 }
 
